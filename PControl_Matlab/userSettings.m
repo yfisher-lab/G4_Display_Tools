@@ -12,7 +12,7 @@ exp_path = default_exp_path;
 
 %Arena Config
 NumofColumns = 12;
-NumofRows = 2;
+NumofRows = 4;
 
 %GUI pattern display setting flipUpDown and flipLeftRight
 %1 means pattern display flip accordingly in the GUI and 0 means no flip
