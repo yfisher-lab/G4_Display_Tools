@@ -1,13 +1,13 @@
-% make_patt_verticalbar_G4
-% pattern generator, creates a single bar
+% make_patt_verticalbar_dac_G4
+% pattern generator, creates a single bar where DAC = 0 is the middle of
+% the blank panel
 
 % INPUTS:
 % pattN - pattern number when saving
 % objWidth - size of bar
 % objPolar - set polarity to dark or bright vs background
 
-% 10/25/2021 - MC created
-% 10/29/2021 - MC added blank
+% 2025 - TLN created
 
 function  make_patt_verticalbar_dac_G4(pattN, objWidth, objPolar, maxGS)
 
