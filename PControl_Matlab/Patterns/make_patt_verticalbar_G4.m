@@ -29,11 +29,11 @@ Pats = zeros(frameN, frameM, pattern.x_num, pattern.y_num);
 
 %set brightness and object polarity
 if contains(objPolar,'d') %dark bar on bright background
-    objGS = 1; %object
+    objGS = 0; %object
     bckGS = maxGS; %background
 else %bright bar on dark background
     objGS = maxGS; %object
-    bckGS = 1; %background
+    bckGS = 0; %background
 end
 
 

@@ -135,7 +135,7 @@ classdef G4_document < handle
             
             [settings_data, path_line, path_index] = self.get_setting(settings_file, 'Configuration File Path: ');
             path = strtrim(settings_data{path_line}(path_index:end));
-%             self.configData = strtrim(regexp( fileread(path),'\n','split'));
+%            self.configData = strtrim(regexp( fileread(path),'\n','split'));
             
             [settings_data, color_line, color_index] = self.get_setting(settings_file, 'Color to fill uneditable cells: ');
             self.uneditable_cell_color = settings_data{color_line}(color_index:end);
@@ -2196,7 +2196,7 @@ classdef G4_document < handle
             end
         end
         
-        function [settings_data, path, index] = get_setting(self, file, string_to_find)
+        function [settings_data, path, index] = get_setting(self, file, string_to_find) 
 
             last_five = string_to_find(end-5:end);
             settings_data = strtrim(regexp( fileread(file),'\n','split'));

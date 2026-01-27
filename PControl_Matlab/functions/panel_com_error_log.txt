@@ -1,0 +1,10 @@
+05/09/25 15:06:12:  set_control_mode command failed. Response message: 
+
+05/09/25 15:06:15:  start_display command failed. Response message: 
+
+05/09/25 15:06:49:  start_display command failed. Response message: 
+
+08/04/25 15:48:45:  set_pattern_id command failed. Response message: Failed to execute Set Pattern ID
+
+08/04/25 15:48:48:  set_pattern_func_id command failed. Response message: Pattern Function 43 Out of Range
+

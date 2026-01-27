@@ -111,7 +111,51 @@ end
 %     f = f+1;
 % end
 
+% TLN pattern and functions
+make_patt_verticalbar_G4(8, 4, 'b', 1); % 4 pix bright bar
+make_patt_verticalbar_G4(9, 19, 'b', 1); % 19 pix bright bar
+make_patt_verticalbar_G4(10, 19, 'd', 1); % 19 pix dark bar
+make_patt_verticalbar_reverse_G4(11, 19, 'b', 1); % 19 pix bright bar ccw
+make_patt_verticalbar_dac_G4(12, 4, 'b', 1); % 4 pix bar where 0 = middle of blank panel
+make_patt_verticalbar_dac_G4(13, 19, 'b', 1); % 19 pix bar where 0 = middle of blank panel
+make_patt_verticalbar_dac_G4(14, 19, 'b', 3); % 19 pix bar where 0 = middle of blank panel
+make_patt_verticalbar_dac_G4(15, 19, 'b', 5); % 19 pix bar where 0 = middle of blank panel
 
+make_func_alternating_sweep_G4(34, 360, 22, 96) % 22 deg/sec 4 pix
+make_func_alternating_sweep_G4(35, 356, 22, 116) % 22 deg/sec 19 pix
+make_func_alternating_sweep_G4(36, 356, 72, 116) % 72 deg/sec 
+make_func_alternating_sweep_G4(37, 360, 72, 250)
+make_func_alternating_sweep_ctr_G4(38, 360, 72, -20) % 72 deg/sec 19 pix ccw
+make_func_alternating_sweep_ctr_G4(39, 180, 72, -20) % 72 deg/sec 180 sweep 19 pix ccw
+make_func_alternating_sweep_G4(40, 356, 40, 116) % 40 deg/sec 19 pix
+make_func_alternating_sweep_ctr_G4(41, 360, 40, -20) % 40 deg/sec 19 pix ccw
+make_func_alternating_sweep_ctr_G4(42, 360, 40, 19) % 40 deg/sec 19 pix cw centered at back panel
+make_func_pause_alternating_sweep_G4_TLN(43, 360, 40, 15, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(44, 360, 20, 15, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(45, 360, 80, 15, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(46, 360, 100, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(47, 360, 40, 15, 4) % alternate cw and ccw rotations
+make_func_pause_alternating_sweep_G4_TLN(48, 360, 20, 15, 4) % alternate cw and ccw rotations
+make_func_pause_alternating_sweep_G4_TLN(49, 360, 100, 15, 4) % alternate cw and ccw rotations
+make_func_pause_alternating_sweep_G4_TLN(56, 360, 180, 15, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(57, 360, 180, 15, 4) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(59, 360, 200, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(60, 360, 300, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(61, 360, 400, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(62, 360, 500, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(63, 360, 600, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(64, 360, 700, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(65, 360, 800, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+make_func_pause_alternating_sweep_G4_TLN(66, 360, 900, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
+
+barLocs = [19:8:77 116];
+make_func_bar_flashing(50, barLocs, 0.01, 2) % randomly flash bar in different locations
+make_func_bar_flashing(51, barLocs, 0.05, 2) % randomly flash bar in different locations
+make_func_bar_flashing(52, barLocs, 0.1, 2) % randomly flash bar in different locations
+make_func_bar_flashing(53, barLocs, 0.2, 2) % randomly flash bar in different locations
+make_func_bar_flashing(54, barLocs, 0.5, 2) % randomly flash bar in different locations
+make_func_bar_flashing(55, barLocs, 1, 2) % randomly flash bar in different locations
+make_func_bar_flashing(58, barLocs, 2, 3) % randomly flash bar in different locations
 
 %% store current experiment data
 create_currentExp(exp_path)
