@@ -120,7 +120,14 @@ make_patt_verticalbar_dac_G4(12, 4, 'b', 1); % 4 pix bar where 0 = middle of bla
 make_patt_verticalbar_dac_G4(13, 19, 'b', 1); % 19 pix bar where 0 = middle of blank panel
 make_patt_verticalbar_dac_G4(14, 19, 'b', 3); % 19 pix bar where 0 = middle of blank panel
 make_patt_verticalbar_dac_G4(15, 19, 'b', 5); % 19 pix bar where 0 = middle of blank panel
-make_patt_box_G4(16, 4, 'b', 32, 1); % 4x4 pix square
+
+% squares at different elevations
+heights = 32:4:60;
+f = 16;
+for h = 1:length(heights)
+    make_patt_box_G4(f, 4, 'b', heights(h), 1); % 4x4 pix square
+    f = f + 1;
+end
 
 make_func_alternating_sweep_G4(34, 360, 22, 96) % 22 deg/sec 4 pix
 make_func_alternating_sweep_G4(35, 356, 22, 116) % 22 deg/sec 19 pix

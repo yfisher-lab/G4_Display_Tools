@@ -44,7 +44,7 @@ end
 bckImage = ones(frameN, frameM) * bckGS;
 
 boxImage = bckImage;
-boxImage((end-distFromTop-objWidth):(end-distFromTop),1:objWidth) = objGS;
+boxImage((end-distFromTop-objWidth):(end-distFromTop-1),1:objWidth) = objGS;
 
 %generate pattern image based on selection
 patImage = boxImage;
