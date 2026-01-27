@@ -30,11 +30,11 @@ Pats = zeros(frameN, frameM, pattern.x_num, pattern.y_num);
 
 %set object parameters
 if contains(objPolar,'d') %dark obj on bright background
-    objGS = 1; %object
+    objGS = 0; %object
     bckGS = maxGS; %background
 else %bright obj on dark background
     objGS = maxGS; %object
-    bckGS = 1; %background
+    bckGS = 0; %background
 end
 
 
