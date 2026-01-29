@@ -64,7 +64,12 @@ end
 Pats = cat(3, Pats(:,:,137:end,:), Pats(:,:,1:136,:));
 
 for i = 1:size(Pats, 3)
-    Pats(:, staticLoc:staticLoc+objWidth, i, 1) = objGS;
+    if staticLoc+objWidth > pattern.x_num
+        Pats(:, staticLoc:pattern.x_num, i, 1) = objGS;
+        Pats(:, 1:staticLoc+objWidth-pattern.x_num, i, 1) = objGS;
+    else
+        Pats(:, staticLoc:objWidth, i, 1) = objGS;
+    end
 end
 
 %store pattern data
