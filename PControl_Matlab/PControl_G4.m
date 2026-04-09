@@ -113,7 +113,7 @@ handles.t2=text('String','Streaming',...
 % Manage panels (place them in the correct position and manage visibilities)
 pan1pos=get(handles.tab1panel,'Position');
 set(handles.tab2panel,'Position',pan1pos)
-set(handles.tab2panel,'Visible','off')
+set(handles.tab2panel,'Visible','on')
 
 
 

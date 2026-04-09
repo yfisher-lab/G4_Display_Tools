@@ -12,16 +12,16 @@ function make_func_bar_flashing(funcN,barLocs,holdDur,breakDur)
 
 %% load settings
 userSettings
-funcFreq = 500;
+funcFreq = 398;
 
 %% generate function data 
 
 %set locations
-locFuncs = zeros(length(barLocs), holdDur*funcFreq);
+locFuncs = zeros(length(barLocs), round(holdDur*funcFreq));
 for loc = 1:length(barLocs)
-    locFuncs(loc, :) = ones(1, holdDur*funcFreq) * barLocs(loc);
+    locFuncs(loc, :) = ones(1, round(holdDur*funcFreq)) * barLocs(loc);
 end
-breakFunc = ones(1, breakDur*funcFreq) * 184; % location where 19 pix bar is centered behind th fly
+breakFunc = ones(1, round(breakDur*funcFreq)) * 184; % location where 19 pix bar is centered behind th fly
 
 %randomize location order
 indexes = 1:1:length(barLocs);

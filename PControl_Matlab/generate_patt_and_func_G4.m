@@ -122,7 +122,7 @@ make_patt_verticalbar_dac_G4(14, 19, 'b', 3); % 19 pix bar where 0 = middle of b
 make_patt_verticalbar_dac_G4(15, 19, 'b', 5); % 19 pix bar where 0 = middle of blank panel
 
 % vertical bars with one static bar
-staticBarLocs = [71, 168];
+staticBarLocs = [71, 184]; %[39, 135]; %
 barSizes = [4, 19];
 f = 16;
 for l = 1:length(staticBarLocs)
@@ -155,19 +155,22 @@ make_func_pause_alternating_sweep_G4_TLN(45, 360, 80, 15, 19) % alternate cw and
 make_func_pause_alternating_sweep_G4_TLN(46, 360, 100, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
 make_func_pause_alternating_sweep_G4_TLN(47, 360, 40, 15, 4) % alternate cw and ccw rotations
 make_func_pause_alternating_sweep_G4_TLN(48, 360, 20, 15, 4) % alternate cw and ccw rotations
-make_func_pause_alternating_sweep_G4_TLN(49, 360, 100, 15, 4) % alternate cw and ccw rotations
+make_func_pause_alternating_sweep_G4_TLN(49, 360, 100, 5, 4) % alternate cw and ccw rotations
 make_func_pause_alternating_sweep_G4_TLN(56, 360, 180, 15, 19) % alternate cw and ccw rotations with 19 sec pause in between
 make_func_pause_alternating_sweep_G4_TLN(57, 360, 180, 15, 4) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(59, 360, 200, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(60, 360, 300, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(61, 360, 400, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(62, 360, 500, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(63, 360, 600, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(64, 360, 700, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(65, 360, 800, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
-make_func_pause_alternating_sweep_G4_TLN(66, 360, 900, 5, 19) % alternate cw and ccw rotations with 19 sec pause in between
 
-barLocs = [19:8:77 116];
+% vertical bars with one static bar
+barVels = 200:100:900;
+barSizes = [19, 4];
+f = 59;
+for b = 1:length(barSizes)
+    for v = 1:length(barVels)
+        make_func_pause_alternating_sweep_G4_TLN(f, 360, barVels(v), 5, barSizes(b))
+        f = f + 1;
+    end
+end
+
+barLocs = [39, 143:4:159];
 make_func_bar_flashing(50, barLocs, 0.01, 2) % randomly flash bar in different locations
 make_func_bar_flashing(51, barLocs, 0.05, 2) % randomly flash bar in different locations
 make_func_bar_flashing(52, barLocs, 0.1, 2) % randomly flash bar in different locations
@@ -175,6 +178,40 @@ make_func_bar_flashing(53, barLocs, 0.2, 2) % randomly flash bar in different lo
 make_func_bar_flashing(54, barLocs, 0.5, 2) % randomly flash bar in different locations
 make_func_bar_flashing(55, barLocs, 1, 2) % randomly flash bar in different locations
 make_func_bar_flashing(58, barLocs, 2, 3) % randomly flash bar in different locations
+
+make_func_bar_flashing(86, barLocs, 0.002, 2) % randomly flash bar in different locations
+make_func_bar_flashing(75, barLocs, 0.005, 2) % randomly flash bar in different locations
+make_func_bar_flashing(87, barLocs, 0.007, 2) % randomly flash bar in different locations
+make_func_bar_flashing(76, barLocs, 0.02, 2) % randomly flash bar in different locations
+make_func_bar_flashing(77, barLocs, 0.03, 2) % randomly flash bar in different locations
+make_func_bar_flashing(78, barLocs, 0.04, 2) % randomly flash bar in different locations
+make_func_bar_flashing(79, barLocs, 0.06, 2) % randomly flash bar in different locations
+make_func_bar_flashing(80, barLocs, 0.07, 2) % randomly flash bar in different locations
+make_func_bar_flashing(81, barLocs, 0.08, 2) % randomly flash bar in different locations
+make_func_bar_flashing(82, barLocs, 0.09, 2) % randomly flash bar in different locations
+make_func_bar_flashing(83, barLocs, 0.15, 2) % randomly flash bar in different locations
+make_func_bar_flashing(84, barLocs, 0.3, 2) % randomly flash bar in different locations
+make_func_bar_flashing(85, barLocs, 0.4, 2) % randomly flash bar in different locations
+
+% randomize bar flash hold duration
+holdDurs = [0.005, 0.007, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5];
+f = 88;
+for loc = 1:length(barLocs)
+    make_func_bar_flashing_all_dur(f, holdDurs, barLocs(loc), 2);
+    f = f + 1;
+end
+
+% change ISI
+rf_center = 151;
+make_func_bar_flashing(94, rf_center, 0.01, 0.09)
+make_func_bar_flashing(95, rf_center, 0.02, 0.08)
+make_func_bar_flashing(96, rf_center, 0.03, 0.07)
+make_func_bar_flashing(97, rf_center, 0.04, 0.06)
+make_func_bar_flashing(98, rf_center, 0.05, 0.05)
+make_func_bar_flashing(99, rf_center, 0.06, 0.04)
+make_func_bar_flashing(100, rf_center, 0.07, 0.03)
+make_func_bar_flashing(101, rf_center, 0.08, 0.02)
+make_func_bar_flashing(102, rf_center, 0.09, 0.01)
 
 %% store current experiment data
 create_currentExp(exp_path)

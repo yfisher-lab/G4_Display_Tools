@@ -8,3 +8,9 @@
 
 08/04/25 15:48:48:  set_pattern_func_id command failed. Response message: Pattern Function 43 Out of Range
 
+04/03/26 16:26:58:  start_display command failed. Response message: 
+
+04/03/26 16:27:02:  stop_display command failed. Response message: 
+
+04/03/26 16:27:02:  stop_display command failed. Response message: 
+
