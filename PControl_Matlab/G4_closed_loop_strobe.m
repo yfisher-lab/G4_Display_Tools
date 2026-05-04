@@ -10,25 +10,25 @@
 % =========================================================
 
 % Experiment folder
-exp_folder   = 'C:\path\to\experiment_folder';
+exp_folder   = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Experiment';
 pattern_id   = 13;
 
 % Trial structure
-trial_dur    = 10;       % seconds
+trial_dur    = 360;       % seconds
 
 % Mode 7 gain calibration: frame_index = gain * (voltage + offset)
 % Example: 0-10V input, 96 x-frames → gain = 9.6
 num_x_frames  = 192;
 voltage_range = 10;      % max voltage from your external hardware (V)
-gain          = num_x_frames / voltage_range;
+gain          = round(num_x_frames / voltage_range);
 offset        = 0;
 
 % Y square wave
 num_y_frames  = 2;       % number of y frames in your pattern
 y_high_frame  = num_y_frames;
 y_low_frame   = 1;
-y_on_dur      = 0.01;     % seconds y stays at y_high_frame per cycle
-y_off_dur     = 0.01;     % seconds y stays at y_low_frame per cycle
+y_on_dur      = 1;     % seconds y stays at y_high_frame per cycle
+y_off_dur     = 1.5;     % seconds y stays at y_low_frame per cycle
 y_update_ms   = 2;       % loop update interval — don't go below ~1ms
 
 % =========================================================
@@ -81,7 +81,8 @@ for i = 1:n_steps
     % Only send command on transitions
     if desired_state ~= prev_state
         if desired_state == 0
-            ctlr.allOff();
+            % ctlr.allOff();
+            ctlr.stopDisplay();
         else
             % Resume Mode 7 display — do nothing, let it run
             % OR if allOff stopped the display, restart it:
@@ -100,20 +101,20 @@ for i = 1:n_steps
 end
 
 % ctlr.startDisplay(trial_dur * 10, false);  % false = non-blocking
-% 
+%
 % t_trial = tic;
 % prev_y  = -1;
-% 
+%
 % for i = 1:n_steps
-% 
+%
 %     % Only send on transitions to minimise TCP load
 %     if y_indices(i) ~= prev_y
 %         ctlr.setPositionY(y_indices(i));
 %         prev_y = y_indices(i);
 %     end
-% 
+%
 %     actual_times(i) = toc(t_trial);
-% 
+%
 %     % Hybrid sleep: pause most of interval, spin-wait the last 0.5ms
 %     next_t    = i * (y_update_ms / 1000);
 %     sleep_dur = next_t - toc(t_trial) - 0.0005;
@@ -121,7 +122,7 @@ end
 %         pause(sleep_dur);
 %     end
 %     while toc(t_trial) < next_t; end  % spin-wait
-% 
+%
 % end
 
 % =========================================================
