@@ -14,7 +14,7 @@ exp_folder   = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_M
 pattern_id   = 13;
 
 % Trial structure
-trial_dur    = 360;       % seconds
+trial_dur    = 60;       % seconds
 
 % Mode 7 gain calibration: frame_index = gain * (voltage + offset)
 % Example: 0-10V input, 96 x-frames → gain = 9.6
@@ -82,7 +82,6 @@ for i = 1:n_steps
     if desired_state ~= prev_state
         if desired_state == 0
             % ctlr.allOff();
-            ctlr.stopDisplay();
         else
             % Resume Mode 7 display — do nothing, let it run
             % OR if allOff stopped the display, restart it:
