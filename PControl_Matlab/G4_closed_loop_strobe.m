@@ -31,6 +31,11 @@ y_on_dur      = 1;     % seconds y stays at y_high_frame per cycle
 y_off_dur     = 1.5;     % seconds y stays at y_low_frame per cycle
 y_update_ms   = 2;       % loop update interval — don't go below ~1ms
 
+% Analog output for start/stop display
+ao_channel   = 0;        % AO channel to use (0-3)
+ao_high_val  = 32767;    % ~10V — sent when display is OFF
+ao_low_val   = 0;        % 0V   — sent when display is ON
+
 % =========================================================
 % CONNECT
 % =========================================================
@@ -41,6 +46,10 @@ ctlr.setRootDirectory(exp_folder);
 ctlr.setPatternID(pattern_id);
 ctlr.setControlMode(7);
 ctlr.setGain(gain, offset);
+
+ctlr.setActiveAOChannels(1);   % activate AO channel 0
+                                % use 2 for ch1, 3 for ch0+ch1, etc.
+ctlr.setAO(ao_channel, ao_low_val);  % ensure AO starts low
 
 % =========================================================
 % PRE-COMPUTE Y TRAJECTORY
@@ -81,12 +90,11 @@ for i = 1:n_steps
     % Only send command on transitions
     if desired_state ~= prev_state
         if desired_state == 0
-            % ctlr.allOff();
             ctlr.stopDisplay();
+            ctlr.setAO(ao_channel, ao_high_val);  % pulse AO high on OFF
         else
-            % Resume Mode 7 display — do nothing, let it run
-            % OR if allOff stopped the display, restart it:
             ctlr.startDisplay(trial_dur * 10, false);
+            ctlr.setAO(ao_channel, ao_low_val);   % pull AO low on ON
         end
         prev_state = desired_state;
     end
@@ -128,6 +136,7 @@ end
 % =========================================================
 % STOP AND CLOSE
 % =========================================================
+ctlr.setAO(ao_channel, ao_low_val);  % ensure AO returns to 0V at end
 ctlr.stopDisplay();
 ctlr.stopLog('timeout', 60.0, 'showTimeoutDialog', true);
 ctlr.close();
