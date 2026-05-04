@@ -39,7 +39,7 @@ pfnparam.size = length(func);
 pfnparam.dur = length(func)/funcFreq;
 
 %set lookup table
-funlookup.name = ['randomly_flash_' num2str(max(indexes)) '_bars_' num2str(holdDur) '_sec'];
+funlookup.name = ['randomly_flash_' num2str(max(indexes)) '_bars_' num2str(holdDur) '_sec_' num2str(breakDur), '_isi'];
 funlookup.sweepRange = 0;
 funlookup.sweepRangePx = 0;
 funlookup.sweepRate = 0;

@@ -10,34 +10,35 @@
 % =========================================================
 
 % Experiment folder
-exp_folder   = 'C:\path\to\experiment_folder';
+exp_folder   = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Experiment';
 pattern_id   = 13;
 
 % Trial structure
-trial_dur    = 10;       % seconds
+trial_dur    = 60;       % seconds
 
 % Mode 7 gain calibration: frame_index = gain * (voltage + offset)
 % Example: 0-10V input, 96 x-frames → gain = 9.6
 num_x_frames  = 192;
 voltage_range = 10;      % max voltage from your external hardware (V)
-gain          = num_x_frames / voltage_range;
+gain          = round(num_x_frames / voltage_range);
 offset        = 0;
 
 % Y square wave
 num_y_frames  = 2;       % number of y frames in your pattern
 y_high_frame  = num_y_frames;
 y_low_frame   = 1;
-y_on_dur      = 0.01;     % seconds y stays at y_high_frame per cycle
-y_off_dur     = 0.01;     % seconds y stays at y_low_frame per cycle
+y_on_dur      = 1;     % seconds y stays at y_high_frame per cycle
+y_off_dur     = 1;     % seconds y stays at y_low_frame per cycle
 y_update_ms   = 2;       % loop update interval — don't go below ~1ms
 
 % =========================================================
 % CONNECT
 % =========================================================
 ctlr = PanelsController();
-ctlr.open(true);
+ctlr.open();
 
 ctlr.setRootDirectory(exp_folder);
+% Panel_com('change_root_directory', exp_folder)
 ctlr.setPatternID(pattern_id);
 ctlr.setControlMode(7);
 ctlr.setGain(gain, offset);
@@ -77,7 +78,12 @@ for i = 1:n_steps
 
     % Only send on transitions to minimise TCP load
     if y_indices(i) ~= prev_y
-        ctlr.setPositionY(y_indices(i));
+        % ctlr.setControlMode(7);
+        % ctlr.setGain(gain, offset);
+        % ctlr.setPositionX(100);
+        % ctlr.setPositionY(y_indices(i));
+        % Panel_com('set_position_y', y_indices(i))
+        ctlr.allOn;
         prev_y = y_indices(i);
     end
 

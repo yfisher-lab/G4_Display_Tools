@@ -170,7 +170,7 @@ for b = 1:length(barSizes)
     end
 end
 
-barLocs = [39, 143:4:159];
+barLocs = [187, 189, 2:4:10, 26:4:42];
 make_func_bar_flashing(50, barLocs, 0.01, 2) % randomly flash bar in different locations
 make_func_bar_flashing(51, barLocs, 0.05, 2) % randomly flash bar in different locations
 make_func_bar_flashing(52, barLocs, 0.1, 2) % randomly flash bar in different locations
@@ -178,7 +178,6 @@ make_func_bar_flashing(53, barLocs, 0.2, 2) % randomly flash bar in different lo
 make_func_bar_flashing(54, barLocs, 0.5, 2) % randomly flash bar in different locations
 make_func_bar_flashing(55, barLocs, 1, 2) % randomly flash bar in different locations
 make_func_bar_flashing(58, barLocs, 2, 3) % randomly flash bar in different locations
-
 make_func_bar_flashing(86, barLocs, 0.002, 2) % randomly flash bar in different locations
 make_func_bar_flashing(75, barLocs, 0.005, 2) % randomly flash bar in different locations
 make_func_bar_flashing(87, barLocs, 0.007, 2) % randomly flash bar in different locations
@@ -202,16 +201,27 @@ for loc = 1:length(barLocs)
 end
 
 % change ISI
-rf_center = 151;
-make_func_bar_flashing(94, rf_center, 0.01, 0.09)
-make_func_bar_flashing(95, rf_center, 0.02, 0.08)
-make_func_bar_flashing(96, rf_center, 0.03, 0.07)
-make_func_bar_flashing(97, rf_center, 0.04, 0.06)
-make_func_bar_flashing(98, rf_center, 0.05, 0.05)
-make_func_bar_flashing(99, rf_center, 0.06, 0.04)
-make_func_bar_flashing(100, rf_center, 0.07, 0.03)
-make_func_bar_flashing(101, rf_center, 0.08, 0.02)
-make_func_bar_flashing(102, rf_center, 0.09, 0.01)
+rf_center = [189, 2, 34];
+flash_durs = [0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5];
+off_ratios = [1, 2, 3];
+f = 98;
+for rf = 1:length(rf_center)
+    for dur = 1:length(flash_durs)
+        for off = 1:length(off_ratios)
+            make_func_bar_flashing(f, rf_center(rf), flash_durs(dur), (flash_durs(dur)*off_ratios(off)))
+            f = f + 1;
+        end
+    end
+end
+% make_func_bar_flashing(94, rf_center, 0.01, 0.09)
+% make_func_bar_flashing(95, rf_center, 0.02, 0.08)
+% make_func_bar_flashing(96, rf_center, 0.03, 0.07)
+% make_func_bar_flashing(97, rf_center, 0.04, 0.06)
+% make_func_bar_flashing(98, rf_center, 0.05, 0.05)
+% make_func_bar_flashing(99, rf_center, 0.06, 0.04)
+% make_func_bar_flashing(100, rf_center, 0.07, 0.03)
+% make_func_bar_flashing(101, rf_center, 0.08, 0.02)
+% make_func_bar_flashing(102, rf_center, 0.09, 0.01)
 
 %% store current experiment data
 create_currentExp(exp_path)
