@@ -68,30 +68,61 @@ end
 % RUN - non-blocking startDisplay + y loop
 % =========================================================
 fprintf('Starting trial (%.1f s)...\n', trial_dur);
-ctlr.startDisplay(trial_dur * 10, false);  % false = non-blocking
+ctlr.startDisplay(trial_dur * 10, false);
 
-t_trial = tic;
-prev_y  = -1;
+t_trial  = tic;
+prev_state = -1;  % 1 = on, 0 = off
 
 for i = 1:n_steps
 
-    % Only send on transitions to minimise TCP load
-    if y_indices(i) ~= prev_y
-        ctlr.setPositionY(y_indices(i));
-        prev_y = y_indices(i);
+    % Determine desired state from square wave
+    desired_state = double(y_indices(i) == y_high_frame);  % 1=on, 0=off
+
+    % Only send command on transitions
+    if desired_state ~= prev_state
+        if desired_state == 0
+            ctlr.allOff();
+        else
+            % Resume Mode 7 display — do nothing, let it run
+            % OR if allOff stopped the display, restart it:
+            ctlr.startDisplay(trial_dur * 10, false);
+        end
+        prev_state = desired_state;
     end
 
     actual_times(i) = toc(t_trial);
 
-    % Hybrid sleep: pause most of interval, spin-wait the last 0.5ms
     next_t    = i * (y_update_ms / 1000);
     sleep_dur = next_t - toc(t_trial) - 0.0005;
-    if sleep_dur > 0
-        pause(sleep_dur);
-    end
-    while toc(t_trial) < next_t; end  % spin-wait
+    if sleep_dur > 0; pause(sleep_dur); end
+    while toc(t_trial) < next_t; end
 
 end
+
+% ctlr.startDisplay(trial_dur * 10, false);  % false = non-blocking
+% 
+% t_trial = tic;
+% prev_y  = -1;
+% 
+% for i = 1:n_steps
+% 
+%     % Only send on transitions to minimise TCP load
+%     if y_indices(i) ~= prev_y
+%         ctlr.setPositionY(y_indices(i));
+%         prev_y = y_indices(i);
+%     end
+% 
+%     actual_times(i) = toc(t_trial);
+% 
+%     % Hybrid sleep: pause most of interval, spin-wait the last 0.5ms
+%     next_t    = i * (y_update_ms / 1000);
+%     sleep_dur = next_t - toc(t_trial) - 0.0005;
+%     if sleep_dur > 0
+%         pause(sleep_dur);
+%     end
+%     while toc(t_trial) < next_t; end  % spin-wait
+% 
+% end
 
 % =========================================================
 % STOP AND CLOSE
