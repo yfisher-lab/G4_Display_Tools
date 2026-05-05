@@ -27,9 +27,14 @@ offset        = 0;
 num_y_frames  = 2;       % number of y frames in your pattern
 y_high_frame  = num_y_frames;
 y_low_frame   = 1;
-y_on_dur      = 1;     % seconds y stays at y_high_frame per cycle
-y_off_dur     = 1.5;     % seconds y stays at y_low_frame per cycle
+y_on_dur      = 0.5;     % seconds y stays at y_high_frame per cycle
+y_off_dur     = 1;     % seconds y stays at y_low_frame per cycle
 y_update_ms   = 2;       % loop update interval — don't go below ~1ms
+
+% Analog output for start/stop display
+ao_channel   = 6;        % AO channel to use (0-3)
+ao_high_val  = 10; %32767;    % ~10V — sent when display is ON
+ao_low_val   = 0;        % 0V   — sent when display is OFF
 
 % =========================================================
 % CONNECT
@@ -41,6 +46,10 @@ ctlr.setRootDirectory(exp_folder);
 ctlr.setPatternID(pattern_id);
 ctlr.setControlMode(7);
 ctlr.setGain(gain, offset);
+
+ctlr.setActiveAOChannels(2);   % activate AO channel 0
+                                % use 2 for ch1, 3 for ch0+ch1, etc.
+ctlr.setAO(ao_channel, ao_low_val);  % ensure AO starts low
 
 % =========================================================
 % PRE-COMPUTE Y TRAJECTORY
@@ -81,12 +90,11 @@ for i = 1:n_steps
     % Only send command on transitions
     if desired_state ~= prev_state
         if desired_state == 0
-            % ctlr.allOff();
             ctlr.stopDisplay();
+            ctlr.setAO(ao_channel, ao_low_val);  % pulse AO low on OFF
         else
-            % Resume Mode 7 display — do nothing, let it run
-            % OR if allOff stopped the display, restart it:
             ctlr.startDisplay(trial_dur * 10, false);
+            ctlr.setAO(ao_channel, ao_high_val);   % pull AO high on ON
         end
         prev_state = desired_state;
     end
@@ -101,20 +109,20 @@ for i = 1:n_steps
 end
 
 % ctlr.startDisplay(trial_dur * 10, false);  % false = non-blocking
-% 
+%
 % t_trial = tic;
 % prev_y  = -1;
-% 
+%
 % for i = 1:n_steps
-% 
+%
 %     % Only send on transitions to minimise TCP load
 %     if y_indices(i) ~= prev_y
 %         ctlr.setPositionY(y_indices(i));
 %         prev_y = y_indices(i);
 %     end
-% 
+%
 %     actual_times(i) = toc(t_trial);
-% 
+%
 %     % Hybrid sleep: pause most of interval, spin-wait the last 0.5ms
 %     next_t    = i * (y_update_ms / 1000);
 %     sleep_dur = next_t - toc(t_trial) - 0.0005;
@@ -122,12 +130,13 @@ end
 %         pause(sleep_dur);
 %     end
 %     while toc(t_trial) < next_t; end  % spin-wait
-% 
+%
 % end
 
 % =========================================================
 % STOP AND CLOSE
 % =========================================================
+ctlr.setAO(ao_channel, ao_low_val);  % ensure AO returns to 0V at end
 ctlr.stopDisplay();
 ctlr.stopLog('timeout', 60.0, 'showTimeoutDialog', true);
 ctlr.close();
