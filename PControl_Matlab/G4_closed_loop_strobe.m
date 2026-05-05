@@ -33,7 +33,7 @@ y_update_ms   = 2;       % loop update interval — don't go below ~1ms
 
 % Analog output for start/stop display
 ao_channel   = 6;        % AO channel to use (0-3)
-ao_high_val  = 10; %32767;    % ~10V — sent when display is ON
+ao_high_val  = 1; %32767;    % ~10V — sent when display is ON
 ao_low_val   = 0;        % 0V   — sent when display is OFF
 
 % =========================================================
@@ -80,7 +80,7 @@ fprintf('Starting trial (%.1f s)...\n', trial_dur);
 ctlr.startDisplay(trial_dur * 10, false);
 
 t_trial  = tic;
-prev_state = -1;  % 1 = on, 0 = off
+prev_state = 0;  % 1 = on, 0 = off
 
 for i = 1:n_steps
 
