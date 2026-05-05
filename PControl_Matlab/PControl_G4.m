@@ -32,13 +32,13 @@ hPcontrol = gcf;
 %     initialize_Pcontrol_paths;
 % end
 
-ctlr = PanelsController();
+ctlr = PanelsController_rw();
 ctlr.mode = 1;
 ctlr.open();
 if ctlr.tcpConn == -1
     system('"C:\Program Files (x86)\HHMI G4\G4 Host" &');
     pause(15);
-    ctlr = PanelsController();
+    ctlr = PanelsController_rw();
     ctlr.mode = 1;
     ctlr.open();
 end
