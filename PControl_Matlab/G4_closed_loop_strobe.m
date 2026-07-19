@@ -23,6 +23,9 @@ voltage_range = 10;      % max voltage from your external hardware (V)
 gain          = round(num_x_frames / voltage_range);
 offset        = 0;
 
+% Blank X frame to account for startDisplay delay
+blank_x_frame = 1; % from make_patt_verticalbar_with_blank_G4
+
 % Y square wave
 num_y_frames  = 2;       % number of y frames in your pattern
 y_high_frame  = num_y_frames;
@@ -93,6 +96,7 @@ for i = 1:n_steps
             ctlr.stopDisplay();
             ctlr.setAO(ao_channel, ao_low_val);  % pulse AO low on OFF
         else
+            ctlr.setPositionX(blank_x_frame); 
             ctlr.startDisplay(trial_dur * 10, false);
             ctlr.setAO(ao_channel, ao_high_val);   % pull AO high on ON
         end
