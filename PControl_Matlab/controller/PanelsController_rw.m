@@ -1,5 +1,5 @@
 
-classdef PanelsController < handle
+classdef PanelsController_rw < handle
 
     properties (Constant)
         defaultHostName = 'localhost';
@@ -13,8 +13,8 @@ classdef PanelsController < handle
     end
 
     properties
-        hostName = PanelsController.defaultHostName;
-        port = PanelsController.defaultPort;
+        hostName = PanelsController_rw.defaultHostName;
+        port = PanelsController_rw.defaultPort;
         tcpConn = [];
         %add property mode to distinguish between the GUI and Script modes
         %mode = 0 means creating a TCP/IP connection from a script
