@@ -11,7 +11,9 @@
 
 % Experiment folder
 exp_folder   = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Experiment';
-pattern_id   = 13;
+pattern_id   = 16;
+% Blank X frame to account for startDisplay delay
+blank_x_frame = 185; % from make_patt_verticalbar_with_blank_G4
 
 % Trial structure
 trial_dur    = 360;       % seconds
@@ -90,9 +92,15 @@ for i = 1:n_steps
     % Only send command on transitions
     if desired_state ~= prev_state
         if desired_state == 0
-            ctlr.stopDisplay();
-            ctlr.setAO(ao_channel, ao_low_val);  % pulse AO low on OFF
+            ctlr.setControlMode(3);
+            ctlr.setPositionX(blank_x_frame); 
+            % ctlr.stopDisplay();
+            % ctlr.setAO(ao_channel, ao_low_val);  % pulse AO low on OFF
+            % ctlr.allOff()
         else
+            % ctlr.setControlMode(3);
+            % ctlr.setPositionX(blank_x_frame);
+            ctlr.setControlMode(7);
             ctlr.startDisplay(trial_dur * 10, false);
             ctlr.setAO(ao_channel, ao_high_val);   % pull AO high on ON
         end

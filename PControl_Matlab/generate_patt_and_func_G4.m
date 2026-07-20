@@ -120,11 +120,12 @@ make_patt_verticalbar_dac_G4(12, 4, 'b', 1); % 4 pix bar where 0 = middle of bla
 make_patt_verticalbar_dac_G4(13, 19, 'b', 1); % 19 pix bar where 0 = middle of blank panel
 make_patt_verticalbar_dac_G4(14, 19, 'b', 3); % 19 pix bar where 0 = middle of blank panel
 make_patt_verticalbar_dac_G4(15, 19, 'b', 5); % 19 pix bar where 0 = middle of blank panel
+make_patt_verticalbar_with_blank_G4(16, 19, 'b', 1); % 19 pix bar where 0 = middle of blank panel
 
 % vertical bars with one static bar
 staticBarLocs = [71, 184]; %[39, 135]; %
 barSizes = [4, 19];
-f = 16;
+f = 17;
 for l = 1:length(staticBarLocs)
     for b = 1:length(barSizes)
         make_patt_static_verticalbar_G4(f, barSizes(b), staticBarLocs(l), 'b', 1)
