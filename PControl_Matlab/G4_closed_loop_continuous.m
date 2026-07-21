@@ -27,10 +27,10 @@
 
 % Experiment folder
 exp_folder   = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Experiment';
-pattern_id   = 16;       % pattern 16: 192 x-frames, frame 185 is set DARK (the strobe blank)
+pattern_id   = 17;       % pattern 16: 192 x-frames, frame 185 is set DARK (the strobe blank)
 
 % Trial structure
-trial_dur    = 360;      % seconds
+trial_dur    = 900;      % seconds
 
 % Mode 7 gain calibration: frame_index = gain * (voltage + offset)
 % The blank/dark x-frame (index 185) and its voltage are defined on the FicTrac
