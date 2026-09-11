@@ -12,7 +12,7 @@ function make_func_bar_flashing_all_dur(funcN,holdDurs,barLoc,breakDur)
 
 %% load settings
 userSettings
-funcFreq = 398;
+funcFreq = 389;
 
 %% generate function data 
 
