@@ -62,7 +62,7 @@ for x = 2:frameM
 end
 
 Pats = cat(3, Pats(:,:,137:end,:), Pats(:,:,1:136,:));
-Pats(:,:,1,1) = bckImage;
+Pats(:,:,185,1) = bckImage;
 
 %store pattern data
 pattern.Pats = Pats;
