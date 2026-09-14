@@ -1,28 +1,26 @@
 %% G4 experimental protocol - mode-switching sequence
-% Runs one full protocol, switching G4 control modes between phases:
-%
 %   Phase 1:  Mode 7 closed loop            cl_dur  s   (bar tracks ADC0 / FicTrac)
 %   Phase 2:  Dark                          dark_dur s
 %   Phase 3:  Position function + AO        n_reps  x   (Mode 1, custom .pfn + .afn)
 %   Phase 4:  Dark                          dark_dur s
 %   Phase 5:  Mode 7 closed loop            cl_dur  s
+%   End:      Arena off (dark)
 %
-% The whole run is logged to one TDMS (startLog..stopLog) with sendSyncLog phase
-% markers so you can segment it in analysis.
+% DARK / OFF: stopDisplay does NOT blank the panels - it freezes the last frame.
+% So "dark" is done with Mode 3 (Stream Pattern Position) holding the current
+% pattern at its DARK frame (index 185). Because we command the index directly,
+% no ADC/gain mapping is involved. When we stopDisplay, the held frame is the
+% dark one, so the arena stays dark.
 %
-% BEFORE RUNNING: your FicTrac -> Phidget heading output must be RUNNING in the
-% background, outputting LIVE heading to ADC0 (no strobe gating) - that drives
-% the bar during the Mode 7 phases. The strobe/AO for phase 3 now lives in the
-% G4 position/AO functions, not the Phidget.
-%
-% Build the phase-3 functions first (they must already exist by ID):
-%   - position function (.pfn): your custom bar-motion function
-%   - AO function (.afn): e.g. make_func_ao_pulses(ao_func_id, func_dur_s, ...)
-% Both must be built at the SAME funcFreq used below and be func_dur_s long.
+% BEFORE RUNNING: your FicTrac -> Phidget heading output must be running in the
+% background (live heading to ADC0) for the Mode 7 phases.
 
 % ============================ PARAMETERS ============================
-exp_folder  = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Write-In Experiment';
-pattern_id  = 1;        % 192-frame bar pattern (used by both closed loop and position function)
+exp_folder       = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Write-In Experiment';
+pattern_id       = 1;   % bar pattern (closed loop + position function + dark frame)
+dark_frame_index = 185;  % index of the all-dark frame in pattern_id (shown in Mode 3)
+                         % NOTE: if this doesn't look dark, try 184 - some tools are
+                         % 1-based while the controller position index is 0-based.
 
 % -- Mode 7 closed-loop calibration (phases 1 & 5) --
 num_x_frames  = 192;
@@ -31,39 +29,45 @@ gain          = round(num_x_frames / voltage_range);   % = 19
 offset        = 0;
 
 % -- Phase 3 function playback --
-pos_func_id = 4;         % ID of your custom position function (.pfn)
-ao_func_id  = 4;         % ID of your custom AO function (.afn)
-ao_channel  = 2;         % function-capable AO channel (2-5); 2 = G4 "Channel 0"
-funcFreq    = 389;       % PLAYBACK rate commanded to the controller (your achievable rate)
+pos_func_id = 1;         % ID of your custom position function (.pfn)
+ao_func_id  = 1;         % ID of your custom AO function (.afn)
+ao_channel  = 2;         % FUNCTION-capable AO channel: 2, 3, 4, or 5 ONLY.
+                         % (AO6/AO7 are static-only and cannot play a function -
+                         %  wire your opto BNC into breakout-box AO2 for ao_channel=2.)
+funcFreq    = 389;       % playback rate commanded to the controller
 n_reps      = 5;
-
-% Read the per-rep duration straight from the saved position function - no need
-% to enter it by hand. Computed at the playback funcFreq (samples/funcFreq),
-% which is what the run-time (deciSeconds) must cover. The AO function must be
-% the same length (matched pair); checked here.
-posFuncDir = fullfile(exp_folder, 'Functions');
-aoFuncDir = fullfile(exp_folder, 'Analog Output Functions');
-[func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
-[~,          nSampAO ] = get_g4_func_dur(ao_func_id,  'afn', funcFreq, aoFuncDir);
-assert(nSampPos == nSampAO, ...
-    'Position (%d samp) and AO (%d samp) functions differ - rebuild them as a matched pair.', ...
-    nSampPos, nSampAO);
-fprintf('Phase-3 functions (pos %d / ao %d): %d samples, %.4f s per rep at %g Hz.\n', ...
-    pos_func_id, ao_func_id, nSampPos, func_dur_s, funcFreq);
 
 % -- Phase durations --
 cl_dur   = 30;           % closed-loop seconds (phases 1 & 5)
 dark_dur = 5;            % dark seconds (phases 2 & 4)
 
-% Log marker class for phase boundaries (arbitrary; appears in the TDMS)
-MARK = 99;
+MARK = 99;               % sendSyncLog marker class for phase boundaries
+
+assert(ao_channel >= 2 && ao_channel <= 5, ...
+    'ao_channel must be 2-5 (function-capable). AO6/AO7 cannot play a function.');
+
+% Read per-rep duration from the saved position function (no manual entry).
+posFuncDir = fullfile(exp_folder, 'Functions');
+aoFuncDir = fullfile(exp_folder, 'Analog Output Functions');
+[func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
+[~,          nSampAO ] = get_g4_func_dur(ao_func_id,  'afn', funcFreq, aoFuncDir);
+assert(nSampPos == nSampAO, ...
+    'Position (%d samp) and AO (%d samp) functions differ - rebuild as a matched pair.', ...
+    nSampPos, nSampAO);
+dur_deci = round(func_dur_s * 10);
+
+% Map the AO function ID to the right combinedCommand slot (ao0=ch2 ... ao3=ch5).
+aoIDs = [0 0 0 0];
+aoIDs(ao_channel - 1) = ao_func_id;
+
+fprintf('Phase-3 functions (pos %d / ao %d): %d samples, %.4f s/rep at %g Hz, AO on ch %d.\n', ...
+    pos_func_id, ao_func_id, nSampPos, func_dur_s, funcFreq, ao_channel);
 
 % ============================ CONNECT ============================
 ctlr = PanelsController();
 ctlr.open(true);
 ctlr.setRootDirectory(exp_folder);
-ctlr.setPatternID(pattern_id);
-ctlr.setActiveAOChannels(ao_channel);   % activate the function-capable AO channel
+ctlr.setActiveAOChannels(ao_channel);
 ctlr.setActiveAIChannels([0 1]);        % log AI0 (bar/ADC0) and AI1 (marker, if wired)
 
 if ~ctlr.startLog()
@@ -74,58 +78,69 @@ protocol_timer = tic;
 % ======================= PHASE 1: closed loop =======================
 fprintf('[%.1f s] Phase 1: Mode 7 closed loop (%d s)\n', toc(protocol_timer), cl_dur);
 ctlr.sendSyncLog(MARK, 1);
-run_closed_loop(ctlr, gain, offset, cl_dur);
+run_closed_loop(ctlr, pattern_id, gain, offset, cl_dur);
 
 % ============================ PHASE 2: dark ============================
 fprintf('[%.1f s] Phase 2: dark (%d s)\n', toc(protocol_timer), dark_dur);
 ctlr.sendSyncLog(MARK, 2);
-go_dark(ctlr, dark_dur);
+show_dark(ctlr, pattern_id, dark_frame_index, dark_dur);
 
 % ================== PHASE 3: position + AO, n_reps ==================
-dur_deci = round(func_dur_s * 10);
 for r = 1:n_reps
     fprintf('[%.1f s] Phase 3: function rep %d/%d\n', toc(protocol_timer), r, n_reps);
     ctlr.sendSyncLog(MARK, 30 + r);
-    % Mode 1 = Fixed Rate Position Function. Plays the position function AND the
-    % AO function together at funcFreq. waitForEnd=true blocks until this rep
-    % completes, so reps run back-to-back with exact controller-clocked timing.
     ctlr.combinedCommand(1, pattern_id, pos_func_id, ...
-        ao_func_id, 0, 0, 0, ...     % ao0=ch2, ao1=ch3, ao2=ch4, ao3=ch5
+        aoIDs(1), aoIDs(2), aoIDs(3), aoIDs(4), ...
         funcFreq, dur_deci, true);
 end
+ctlr.stopDisplay();
 
 % ============================ PHASE 4: dark ============================
 fprintf('[%.1f s] Phase 4: dark (%d s)\n', toc(protocol_timer), dark_dur);
 ctlr.sendSyncLog(MARK, 4);
-go_dark(ctlr, dark_dur);
+show_dark(ctlr, pattern_id, dark_frame_index, dark_dur);
 
 % ======================= PHASE 5: closed loop =======================
 fprintf('[%.1f s] Phase 5: Mode 7 closed loop (%d s)\n', toc(protocol_timer), cl_dur);
 ctlr.sendSyncLog(MARK, 5);
-run_closed_loop(ctlr, gain, offset, cl_dur);
+run_closed_loop(ctlr, pattern_id, gain, offset, cl_dur);
 
-% ============================ STOP ============================
+% ==================== END: arena off (dark) ====================
 ctlr.sendSyncLog(MARK, 0);
-ctlr.stopDisplay();
-ctlr.allOff();
+show_dark(ctlr, pattern_id, dark_frame_index, 0.3);   % leaves the held frame dark
+ctlr.allOff();                                        % extra, harmless if unsupported
 ctlr.stopLog('timeout', 60.0, 'showTimeoutDialog', true);
 ctlr.close();
-fprintf('[%.1f s] Protocol complete.\n', toc(protocol_timer));
+fprintf('[%.1f s] Protocol complete - arena dark.\n', toc(protocol_timer));
 
 % ============================ HELPERS ============================
-function run_closed_loop(ctlr, gain, offset, dur_s)
-    % Mode 7: ADC0 (FicTrac heading) sets the bar x-index. Continuous display.
+function run_closed_loop(ctlr, pattern_id, gain, offset, dur_s)
+    % Mode 7: ADC0 (FicTrac heading) sets the bar x-index. Run until we stop it
+    % (65535 = "don't self-complete") so MATLAB controls the phase duration.
+    ctlr.stopDisplay();
     ctlr.setControlMode(7);
+    ctlr.setPatternID(pattern_id);
     ctlr.setGain(gain, offset);
-    ctlr.startDisplay(round(dur_s * 10), false);   % non-blocking
+    ctlr.startDisplay(65535, false);
     pause(dur_s);
     ctlr.stopDisplay();
 end
 
-function go_dark(ctlr, dur_s)
-    % All LEDs off. stopDisplay first so nothing is refreshing, then allOff so
-    % the blank holds for the whole dark period.
+function show_dark(ctlr, pattern_id, dark_frame_index, dur_s)
+    % Reliable dark: Mode 3 (Stream Pattern Position) holds the current pattern
+    % at its dark frame. In Mode 3 the host STREAMS the x index to a RUNNING
+    % display, so startDisplay must come FIRST and the index is (re)sent while it
+    % runs. Setting the position before startDisplay (as before) was ignored,
+    % which is why the arena stayed on the previous frame. When we stopDisplay,
+    % the held frame is the dark one, so the arena stays dark.
     ctlr.stopDisplay();
-    ctlr.allOff();
-    pause(dur_s);
+    ctlr.setControlMode(3);
+    ctlr.setPatternID(pattern_id);
+    ctlr.startDisplay(65535, false);              % start the display FIRST
+    t0 = tic;
+    while toc(t0) < dur_s
+        ctlr.setPositionX(dark_frame_index);      % stream the dark index while running
+        pause(0.05);
+    end
+    ctlr.stopDisplay();                            % held frame = dark index
 end
