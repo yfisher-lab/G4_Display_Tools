@@ -14,8 +14,8 @@ strobeOnDur = varargin{2}; %sec
 strobeOffDur = varargin{3}; %sec
 
 %% load settings
-userSettings
-funcFreq = 398;
+writeInUserSettings
+funcFreq = 389;
 totalFrames = 192;
 
 %% generate function data

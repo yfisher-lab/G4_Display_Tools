@@ -17,7 +17,7 @@
 % Run with PControl_Matlab on the path (userSettings, make_func_opto_write_in,
 % make_func_ao_pulses, save_function_G4, create_currentExp, ...).
 
-userSettings
+writeInUserSettings
 
 % ---------------------------------------------------------------------------
 % funcFreq MUST equal the value hard-coded in make_func_opto_write_in.m so the
@@ -25,23 +25,26 @@ userSettings
 % currently uses 398. If you move it to your calibrated 389, change BOTH:
 % make_func_opto_write_in.m line 18 AND this value.
 % ---------------------------------------------------------------------------
-funcFreq = 398;
+funcFreq = 389;
+
+% generate patterns
+make_patt_verticalbar_dac_G4(1, 4, 'b', 1); % 4 pix bar where 0 = middle of blank panel
 
 % ---- AO pulse design (applied to every version) ----
 % A brief pulse marks the start of each bar presentation.
 ao_amp       = 5;     % V, AO pulse amplitude
 ao_delay     = 0;     % s, delay from presentation onset before the AO goes high
-ao_pulse_dur = 0.05;  % s, pulse width at each bar onset ([] = span the whole window)
+ao_pulse_dur = 0.01;  % s, pulse width at each bar onset ([] = span the whole window)
 ao_baseline  = 0;     % V, output between pulses
 
 % ---- VERSIONS ----
 % One row per matched pair. Columns are the make_func_opto_write_in inputs:
 %    ID  barStartLoc  onDur  offDur  numMarkPoints  strobeBar  strobeOnDur  strobeOffDur
 V = {
-      1,   1,         2,     1,      4,             0,         0,           0
-      2,   1,         1,     1,      8,             0,         0,           0
-      3,   48,        2,     1,      4,             1,         0.02,        0.02
-      4,   96,        0.5,   0.5,    6,             1,         0.01,        0.03
+      1,   0,         2,     0,      8,             0,         0,           0
+      2,   96,        2,     0,      8,             0,         0,           0
+      3,   0,         2,     0,      8,             1,         0.4,         0.8
+      4,   96,        2,     0,      8,             1,         0.4,         0.8
    };
 
 fprintf('Generating %d matched write-in + AO pairs at %g Hz...\n', size(V,1), funcFreq);

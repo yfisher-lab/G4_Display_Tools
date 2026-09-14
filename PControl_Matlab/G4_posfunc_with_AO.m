@@ -21,8 +21,8 @@
 % Both must be built at the SAME funcFreq used below and be func_dur_s long.
 
 % ============================ PARAMETERS ============================
-exp_folder  = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Experiment';
-pattern_id  = 16;        % 192-frame bar pattern (used by both closed loop and position function)
+exp_folder  = 'C:\Users\Fisher Lab\Documents\GitHub\G4_Display_Tools\PControl_Matlab\Write-In Experiment';
+pattern_id  = 1;        % 192-frame bar pattern (used by both closed loop and position function)
 
 % -- Mode 7 closed-loop calibration (phases 1 & 5) --
 num_x_frames  = 192;
@@ -31,8 +31,8 @@ gain          = round(num_x_frames / voltage_range);   % = 19
 offset        = 0;
 
 % -- Phase 3 function playback --
-pos_func_id = 1;         % ID of your custom position function (.pfn)
-ao_func_id  = 1;         % ID of your custom AO function (.afn)
+pos_func_id = 4;         % ID of your custom position function (.pfn)
+ao_func_id  = 4;         % ID of your custom AO function (.afn)
 ao_channel  = 2;         % function-capable AO channel (2-5); 2 = G4 "Channel 0"
 funcFreq    = 389;       % PLAYBACK rate commanded to the controller (your achievable rate)
 n_reps      = 5;
@@ -41,9 +41,10 @@ n_reps      = 5;
 % to enter it by hand. Computed at the playback funcFreq (samples/funcFreq),
 % which is what the run-time (deciSeconds) must cover. The AO function must be
 % the same length (matched pair); checked here.
-funcDir = fullfile(exp_folder, 'Functions');
-[func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, funcDir);
-[~,          nSampAO ] = get_g4_func_dur(ao_func_id,  'afn', funcFreq, funcDir);
+posFuncDir = fullfile(exp_folder, 'Functions');
+aoFuncDir = fullfile(exp_folder, 'Analog Output Functions');
+[func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
+[~,          nSampAO ] = get_g4_func_dur(ao_func_id,  'afn', funcFreq, aoFuncDir);
 assert(nSampPos == nSampAO, ...
     'Position (%d samp) and AO (%d samp) functions differ - rebuild them as a matched pair.', ...
     nSampPos, nSampAO);
