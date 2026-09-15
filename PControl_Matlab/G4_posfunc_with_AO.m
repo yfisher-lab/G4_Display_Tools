@@ -35,10 +35,10 @@ ao_channel  = 2;         % FUNCTION-capable AO channel: 2, 3, 4, or 5 ONLY.
                          % (AO6/AO7 are static-only and cannot play a function -
                          %  wire your opto BNC into breakout-box AO2 for ao_channel=2.)
 funcFreq    = 389;       % playback rate commanded to the controller
-n_reps      = 5;
+n_reps      = 3;
 
 % -- Phase durations --
-cl_dur   = 30;           % closed-loop seconds (phases 1 & 5)
+cl_dur   = 10;           % closed-loop seconds (phases 1 & 5)
 dark_dur = 5;            % dark seconds (phases 2 & 4)
 
 MARK = 99;               % sendSyncLog marker class for phase boundaries
@@ -47,13 +47,16 @@ assert(ao_channel >= 2 && ao_channel <= 5, ...
     'ao_channel must be 2-5 (function-capable). AO6/AO7 cannot play a function.');
 
 % Read per-rep duration from the saved position function (no manual entry).
+% Compare DURATIONS, not sample counts: the position function is sampled at
+% funcFreq (~389 Hz) but the AO function is sampled at 1 kHz, so the two have
+% different sample counts even though they last the same real time.
 posFuncDir = fullfile(exp_folder, 'Functions');
 aoFuncDir = fullfile(exp_folder, 'Analog Output Functions');
 [func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
-[~,          nSampAO ] = get_g4_func_dur(ao_func_id,  'afn', funcFreq, aoFuncDir);
-assert(nSampPos == nSampAO, ...
-    'Position (%d samp) and AO (%d samp) functions differ - rebuild as a matched pair.', ...
-    nSampPos, nSampAO);
+ao_dur_s = get_g4_func_dur(ao_func_id, 'afn', [], aoFuncDir);   % [] -> use the AO's own stored rate (1 kHz)
+assert(abs(func_dur_s - ao_dur_s) < 0.02, ...
+    'Position (%.3f s) and AO (%.3f s) durations differ - rebuild as a matched pair.', ...
+    func_dur_s, ao_dur_s);
 dur_deci = round(func_dur_s * 10);
 
 % Map the AO function ID to the right combinedCommand slot (ao0=ch2 ... ao3=ch5).

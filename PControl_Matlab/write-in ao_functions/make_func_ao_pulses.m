@@ -23,7 +23,12 @@ function make_func_ao_pulses(funcN, totalDur, pulseOnsets, pulseWidths, pulseAmp
 %   pulseAmps    pulse voltages (V, -10..10): scalar or per-pulse vector
 %
 % OPTIONAL name/value
-%   'funcFreq'   sample rate (Hz). default 389 (your calibrated true frame rate)
+%   'funcFreq'   AO functions are NOMINALLY 1 kHz, but the
+%                hardware runs them slow by the same factor as the display clock
+%                (e.g. ~778 Hz when the position clock is ~389). Build at the
+%                MEASURED AO rate, not the nominal 1000, or pulses drift ~580 ms
+%                per interval. Do NOT build at the position rate either (that
+%                makes it play too fast and loop).
 %   'baseline'   voltage between pulses (V). default 0
 %   'saveDir'    folder for ao####.afn. default [exp_path filesep 'Functions']
 %                (put it wherever your experiment loads .afn from - same place
@@ -34,7 +39,7 @@ function make_func_ao_pulses(funcN, totalDur, pulseOnsets, pulseWidths, pulseAmp
 
 % ---------------- parse optional args ----------------
 ip = inputParser;
-ip.addParameter('funcFreq', 389,  @(x) isscalar(x) && x > 0);
+ip.addParameter('funcFreq', 1000, @(x) isscalar(x) && x > 0);  % AO always plays at 1 kHz
 ip.addParameter('baseline', 0,    @(x) isscalar(x));
 ip.addParameter('saveDir',  '',   @(x) ischar(x) || isstring(x));
 ip.addParameter('name',     '',   @(x) ischar(x) || isstring(x));
