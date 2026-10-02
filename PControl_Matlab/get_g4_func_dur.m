@@ -1,4 +1,4 @@
-function [dur, nSamples, funcFreqUsed] = get_g4_func_dur(funcID, funcType, funcFreq, funcDir)
+function [dur, nSamples, funcFreqUsed, func] = get_g4_func_dur(funcID, funcType, funcFreq, funcDir)
 %GET_G4_FUNC_DUR  Duration (s) of a saved G4 position (.pfn) or AO (.afn) function.
 %
 % Reads the sample count from the function's .mat (written by
@@ -23,11 +23,13 @@ function [dur, nSamples, funcFreqUsed] = get_g4_func_dur(funcID, funcType, funcF
 %   dur           duration in seconds ( nSamples / funcFreqUsed )
 %   nSamples      number of function samples
 %   funcFreqUsed  the rate used to compute dur
+%   func          the function sample vector (the position/AO values themselves),
+%                 so callers can inspect its content (e.g. the trailing dark run)
 
     if nargin < 2 || isempty(funcType); funcType = 'pfn'; end
     if nargin < 3; funcFreq = []; end
     if nargin < 4 || isempty(funcDir)
-        userSettings;                                   % defines exp_path
+        writeInUserSettings;                                   % defines exp_path
         funcDir = fullfile(exp_path, 'Functions');
     end
 
@@ -51,8 +53,8 @@ function [dur, nSamples, funcFreqUsed] = get_g4_func_dur(funcID, funcType, funcF
 
     % Sample count: numel(func) is correct for BOTH types. (Note: afnparam.size
     % is a BYTE count = 2*nSamples, so don't use it for AO functions.)
-    if     isfield(p, 'func'); nSamples = numel(p.func);
-    elseif isfield(p, 'size'); nSamples = p.size;          % pfn only
+    if     isfield(p, 'func'); nSamples = numel(p.func); func = p.func(:).';
+    elseif isfield(p, 'size'); nSamples = p.size; func = [];   % pfn only, no vector stored
     else;  error('Cannot determine sample count from %s', files(1).name); end
 
     if isempty(funcFreq)
