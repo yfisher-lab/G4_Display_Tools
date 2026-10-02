@@ -12,10 +12,28 @@ function make_func_opto_write_in(funcN,barStartLoc,onDur,offDur,numMarkPoints,va
 strobeBar = varargin{1};
 strobeOnDur = varargin{2}; %sec
 strobeOffDur = varargin{3}; %sec
+% Leading dark blank (sec) at the very start of the function. The display engine
+% latches sample 0 and holds it for a jittery 0-150 ms at startDisplay; if sample 0
+% is a bar it is shown during that hold while the AO's first pulse (held at baseline)
+% is not, so the first pulse lands up to ~150 ms after the already-visible bar.
+% Starting dark means the bar isn't shown until the engine is advancing, so the first
+% bar and first AO pulse are delayed together and stay aligned - no pulse to discard.
+% In the free-run protocol this cycle loops, so the blank recurs each loop (extra dark
+% before every rep); it only NEEDS to cover the one startup hold. Keep equal to
+% leadBlankDur in generate_opto_writein_and_ao_G4.m (the AO timeline adds it too).
+if numel(varargin) >= 4 && ~isempty(varargin{4})
+    leadBlankDur = varargin{4}; %sec
+else
+    leadBlankDur = 0.20;        %sec, default (> observed ~150 ms startup hold)
+end
 
 %% load settings
 writeInUserSettings
-funcFreq = 395;
+funcFreq = 395;   % build at the TRUE measured hardware play rate (Frame_Position
+                  % log: 954-sample bars play in 2.4169 s -> 395 Hz), so the .pfn's
+                  % sample counts and the real-time playback agree. If you change
+                  % this, change funcFreq_pos in generate_opto_writein_and_ao_G4.m to
+                  % match, OR re-split it back into build/play rates there.
 totalFrames = 192;
 
 %% generate function data
@@ -54,9 +72,11 @@ elseif strobeBar == 1
 end
 
 breakFunc = ones(1, round(offDur*funcFreq)) * 184; % location where 19 pix bar is centered behind the fly
+leadBlank = ones(1, round(leadBlankDur*funcFreq)) * 184; % dark hold absorbing the startDisplay startup latency
 
-% set function
-func = breakFunc;
+% set function - START with the leading dark blank so the first bar is not shown
+% during the startup hold (keeps the first AO pulse aligned with the first bar).
+func = [leadBlank breakFunc];
 for loc = 1:length(barLocs)
     func = [func locFuncs(loc,:) breakFunc];
 end

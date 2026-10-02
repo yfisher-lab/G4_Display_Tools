@@ -31,40 +31,24 @@ gain          = round(num_x_frames / voltage_range);   % = 19
 offset        = 0;
 
 % -- Phase 3 function playback --
-func_id = 2;
-pos_func_id = func_id;         % ID of your custom position function (.pfn)
-ao_func_id  = func_id;         % ID of your custom AO function (.afn)
+pos_func_id = 7;         % ID of your custom position function (.pfn)
+ao_func_id  = 7;         % ID of your custom AO function (.afn)
 ao_channel  = 2;         % FUNCTION-capable AO channel: 2, 3, 4, or 5 ONLY.
                          % (AO6/AO7 are static-only and cannot play a function -
                          %  wire your opto BNC into breakout-box AO2 for ao_channel=2.)
 funcFreq    = 395;       % TRUE Mode-1 hardware playback rate (Hz), measured from the
-                         % logged Frame_Position/Frame_Time trace of a 20-rep run:
-                         % clean bar presentations are 954 build-samples and play in
-                         % 2.4169 s -> 395 Hz (+-1). That is ~0.8% SLOWER than the 398
-                         % Hz the .pfn is BUILT at (make_func_opto_write_in), NOT
-                         % faster. func_dur_s below = nSampPos/funcFreq, so using the
-                         % true 395 makes func_dur_s equal the real cycle length and
-                         % centers dur_deci in the trailing dark. dur_trim_s still
-                         % absorbs any residual.
-n_reps      = 3;
-dur_trim_s  = [];        % seconds shaved off each rep's runtime (dur_deci). With the
-                         % blocking display, a rep runs for exactly dur_deci; if that
-                         % exceeds the function's TRUE play length, Mode 1 restarts
-                         % from frame 1 and you see an extra strobe at the start
-                         % position. WHY A TRIM AT ALL: the function ends on a dark
-                         % break (a trailing run at frame 184). If the display ends
-                         % anywhere INSIDE that final break, every real strobe is
-                         % shown, there's no restart, and the only thing clipped is
-                         % invisible dark. That break (~0.5 s) is far wider than the
-                         % few-% rate uncertainty, so we don't need the exact rate -
-                         % we just aim dur_deci at the MIDDLE of the trailing break.
-                         % [] (default) = auto: trim = half the function's own
-                         % trailing-dark run, measured from the .pfn. Set a number to
-                         % override with a fixed trim (s).
+                         % logged Frame_Position/Frame_Time trace: clean bar
+                         % presentations play in 2.4169 s -> 395 Hz (+-1). Used as
+                         % func_dur_s = nSampPos/funcFreq = one cycle length, which
+                         % sets the free-run display duration (n_reps * func_dur_s).
+                         % NOTE: the true rate drifts ~2% run-to-run, so the number of
+                         % COMPLETE loops in that fixed time = n_reps*(true_rate/395)
+                         % may be off by ~+-1; count actual reps from the Frame log.
+n_reps      = 5;
 
 % -- Phase durations --
-cl_dur   = 10;           % closed-loop seconds (phases 1 & 5)
-dark_dur = 10;            % dark seconds (phases 2 & 4)
+cl_dur   = 5;           % closed-loop seconds (phases 1 & 5)
+dark_dur = 5;            % dark seconds (phases 2 & 4)
 
 MARK = 99;               % sendSyncLog marker class for phase boundaries
 
@@ -110,56 +94,41 @@ fprintf('[%.1f s] Phase 2: dark (%d s)\n', toc(protocol_timer), dark_dur);
 ctlr.sendSyncLog(MARK, 2);
 show_dark(ctlr, dark_frame_index, dark_dur);
 
-% ================== PHASE 3: position + AO, n_reps ==================
+% ================== PHASE 3: position + AO, n_reps (FREE-RUN) ==================
 % Read the function durations now (not at the top) so phases 1-2 run even if the
-% function files are misplaced. Position .pfn is sampled at funcFreq (~389 Hz);
-% the AO .afn at ~778 Hz - different sample counts, same real-time duration.
-[func_dur_s, nSampPos, ~, posFunc] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
+% function files are misplaced. func_dur_s is ONE position-function cycle (the period
+% the .pfn loops at). The AO .afn is built to span many cycles (see the generator).
+[func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
 ao_dur_s = get_g4_func_dur(ao_func_id, 'afn', [], aoFuncDir);   % [] -> the AO's own stored rate
-assert(ao_dur_s >= func_dur_s - 0.02, ...
-    'AO function (%.3f s) is shorter than the position function (%.3f s) - it will loop/repeat. Rebuild the AO with padding.', ...
-    ao_dur_s, func_dur_s);
 
-% Auto-trim: land dur_deci in the MIDDLE of the function's trailing dark break so a
-% restart is impossible for any plausible true rate, and only invisible dark is
-% clipped. Count the trailing run of samples equal to the dark frame (184) and shave
-% half of it (in seconds, at funcFreq). Falls back to a fixed 0.5 s if the vector
-% isn't available or the function doesn't end dark.
-if isempty(dur_trim_s)
-    if ~isempty(posFunc) && posFunc(end) == dark_frame_index
-        k = numel(posFunc);
-        while k > 1 && posFunc(k-1) == dark_frame_index; k = k - 1; end
-        trailDark_samp = numel(posFunc) - k + 1;           % length of the trailing 184-run
-        dur_trim_s = 0.5 * trailDark_samp / funcFreq;      % half of it, in seconds
-        fprintf('Auto-trim: trailing dark run = %d samples (%.3f s); trimming half = %.3f s.\n', ...
-            trailDark_samp, trailDark_samp/funcFreq, dur_trim_s);
-    else
-        dur_trim_s = 0.5;
-        warning(['Could not read a trailing dark run from the position function; ' ...
-                 'using dur_trim_s = 0.5 s. Check that it ends at frame %d.'], dark_frame_index);
-    end
-end
-dur_deci = round((func_dur_s - dur_trim_s) * 10);
-fprintf('Phase-3 functions (pos %d / ao %d): %d samples, %.4f s/rep (dur_deci %.1f s), AO on ch %d.\n', ...
-    pos_func_id, ao_func_id, nSampPos, func_dur_s, dur_deci/10, ao_channel);
+% FREE-RUN: instead of one startDisplay per rep, run ONE continuous display and let
+% the position function LOOP internally n_reps times. Internal loops are seamless (no
+% startup hold - verified from the Frame log), so only the FIRST bar/pulse of the
+% whole run sees the startDisplay hold; discard that one pulse in analysis. This
+% removes the per-rep first-pulse misalignment entirely.
+run_dur_s  = n_reps * func_dur_s;
+total_deci = round(run_dur_s * 10);
 
-% Pattern was set once in CONNECT (it never changes). Only the fast mode/function/
-% AO-ID commands are set per rep.
+% The AO must outlast the display or it would loop and desync. (Generator builds it to
+% cover max_reps_ao cycles.)
+assert(ao_dur_s >= run_dur_s - 0.02, ...
+    ['AO function covers %.1f s but this run needs %.1f s (n_reps=%d). Raise max_reps_ao ' ...
+     'in the generator and rebuild, or lower n_reps.'], ao_dur_s, run_dur_s, n_reps);
+
+fprintf(['Phase 3 (free-run): %d samples/cycle, %.4f s/cycle, %d reps -> %.1f s continuous.\n' ...
+         '  NOTE: complete reps = n_reps * (true_rate/funcFreq) ~ %d; count actual reps from the\n' ...
+         '  Frame log and discard the first pulse (startDisplay startup hold).\n'], ...
+    nSampPos, func_dur_s, n_reps, run_dur_s, n_reps);
+
+% Pattern was set once in CONNECT. Set mode/function/AO-ID ONCE, then one display.
 ctlr.stopDisplay();
-
-for r = 1:n_reps
-    fprintf('[%.1f s] Phase 3: function rep %d/%d\n', toc(protocol_timer), r, n_reps);
-    ctlr.sendSyncLog(MARK, 30 + r);
-    ctlr.setControlMode(1);                        % Fixed Rate Position Function
-    ctlr.setPatternFunctionID(pos_func_id);
-    ctlr.setAOFunctionID(ao_channel, ao_func_id);  % ao_channel is 2-5
-    % BLOCKING display: MATLAB waits for the controller's own "Sequence completed"
-    % after exactly dur_deci, instead of a MATLAB pause (which jittered and caused
-    % early cut-offs / late restarts). The display self-terminates, so no pause and
-    % no stopDisplay are needed between reps. Keep dur_deci = one function length
-    % (raise dur_trim_s a hair only if you see a restarted strobe at the very end).
-    ctlr.startDisplay(dur_deci, true);
-end
+ctlr.sendSyncLog(MARK, 30);
+ctlr.setControlMode(1);                        % Fixed Rate Position Function
+ctlr.setPatternFunctionID(pos_func_id);
+ctlr.setAOFunctionID(ao_channel, ao_func_id);  % ao_channel is 2-5
+% BLOCKING display for the whole run: MATLAB waits for the controller's own "Sequence
+% completed" after exactly total_deci. The function loops internally the whole time.
+ctlr.startDisplay(total_deci, true);
 % Deactivate the AO channel so the assigned AO function does NOT re-fire on the
 % startDisplay of the later dark/closed-loop phases. (Cannot deassign with
 % function ID 0 - the G4 rejects it as "out of range" - so turn the channel off.)

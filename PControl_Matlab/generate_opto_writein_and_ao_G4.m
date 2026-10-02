@@ -30,28 +30,49 @@ writeInUserSettings
 %                  make_func_opto_write_in.m. If you ever build the .pfn at a
 %                  DIFFERENT rate than it plays, split this back into a build rate
 %                  (for sample indices) and a play rate (for seconds).
-%   funcFreq_ao  : the AO clock - a SEPARATE hardware clock, nominally 1000 Hz but
-%                  slowed by the same factor as position (nominal pos 500 -> 395 is
-%                  x0.79; AO 1000 x0.79 ~ 790). Nominal AO/pos = 2, so AO = 2 x pos.
-%                  This can't be merged with funcFreq_pos - the AO and the bars run
-%                  on different clocks, which is why the timeline below converts
-%                  position-samples -> seconds -> AO-samples. (This run's AO wasn't
-%                  logged - AO2 recorded 0 samples - so 790 is from the 2x
-%                  relationship; confirm next run by looping AO2 into a spare ADC.)
+%   funcFreq_ao  : the AO clock - a SEPARATE hardware clock. What governs AO-to-bar
+%                  alignment is the RATIO funcFreq_ao/funcFreq_pos: the generator
+%                  places each pulse at onsetSamples*ratio, so on playback the
+%                  onsetSamples cancels (and with it run-to-run absolute-rate wobble)
+%                  only if ratio = R_ao/R_pos. The nominal 2.0 holds up in practice -
+%                  the 10-01 run's pulses 2..N were all aligned at funcFreq_ao=790,
+%                  so there's no measurable cumulative drift and 2.0 is correct. (If a
+%                  future run DOES show offset growing with time-into-rep, that's a
+%                  ratio error - recalibrate it from the logged AO.)
 % ---------------------------------------------------------------------------
 funcFreq_pos = 395;                  % position clock (build = play); match make_func_opto_write_in
 funcFreq_ao  = 2 * funcFreq_pos;     % = 790; separate AO hardware clock (2 x position)
 
+% FREE-RUN design: the protocol plays ONE continuous display and lets the position
+% function loop internally n_reps times (internal loops are seamless - only the first
+% startDisplay incurs the startup hold). So the AO function must span the WHOLE run,
+% not one cycle. We build it to cover max_reps_ao cycles of pulses, each cycle's
+% pulses placed at their own absolute time (no AO looping), so the protocol can run
+% any n_reps up to this many. The display stops before the AO ends, leaving the
+% surplus pulses unreached.
+max_reps_ao = 50;                    % AO covers up to this many reps (protocol asserts n_reps <= this)
+
+% Leading dark blank (s) at the start of the position CYCLE so the first bar is hidden
+% during the startDisplay startup hold (keeps the first AO pulse aligned - nothing to
+% discard). Because the cycle loops, this dark recurs before every rep; it only needs
+% to exceed the ~150 ms hold. This ONE value feeds BOTH the .pfn (via make_func) and
+% the AO timeline below, so they always match - a mismatch slips the AO by one blank
+% PER REP (that was the 0.25 s/rep -> 1.3 s drift). The readback assert in the loop
+% guards against an old make_func that silently ignores this argument.
+leadBlankDur = 0.20;                 % s (> observed ~150 ms startup hold)
+
 % ---- AO pulse design (applied to every version) ----
 % A brief pulse marks the start of each bar presentation.
 ao_amp       = 5;      % V, AO pulse amplitude
-ao_delay     = 0.016;  % s, offset of each AO pulse relative to the frame change.
-                       % The displayed-frame signal lags the function command by a
-                       % jittery display latency (~9-17 ms on your rig), so the AO's
-                       % offset = ao_delay - that latency. 16 ms centers the AO just
-                       % after the change: typically 3-7 ms after, worst-case lead
-                       % ~1 ms, worst-case lag ~7 ms - inside "lead <3 ms, lag <10 ms".
-                       % Nudge up ~1 ms to trade a bit more lag for fewer leads, or
+ao_delay     = 0.018;  % s, offset of each AO pulse relative to the frame change.
+                       % Measured from the ADC2 loopback vs the Frame log: the
+                       % displayed bar lags the function pointer by a ~12.8 ms display
+                       % latency with ~+-3.4 ms jitter, so the NET AO-vs-bar offset =
+                       % ao_delay - 12.8 ms. 18 ms centers the net at ~+5 ms (AO just
+                       % after the bar), so the jitter mostly stays inside your target
+                       % [0, +10 ms] (aligned or small lag, rarely a <2 ms lead). The
+                       % ~+-3-7 ms jitter is DISPLAY latency (hardware) and can't be
+                       % removed by ao_delay. Nudge up ~1 ms for fewer leads (more lag),
                        % down ~1 ms for the reverse.
 ao_pulse_dur = 0.05;   % s, pulse width at each bar onset ([] = span the whole window)
 ao_baseline  = 0;      % V, output between pulses
@@ -60,14 +81,14 @@ ao_baseline  = 0;      % V, output between pulses
 % One row per matched pair. Columns are the make_func_opto_write_in inputs:
 %    ID  barStartLoc  onDur  offDur  numMarkPoints  strobeBar  strobeOnDur  strobeOffDur
 V = {
-      1,   0,         2,     0,      8,             0,         0,           0
-      2,   96,        2,     0,      8,             0,         0,           0
-      3,   0,         2,     0,      8,             1,         0.4,         0.8
-      4,   96,        2,     0,      8,             1,         0.4,         0.8
-      5,   0,         2,     0,      8,             1,         0.15,        0.3
-      6,   96,        2,     0,      8,             1,         0.15,        0.3
-      7,   0,         2,     0,      8,             1,         0.03,        0.06
-      8,   96,        2,     0,      8,             1,         0.03,        0.06
+      1,   0,         2.4,   0,      8,             0,         0,           0
+      2,   96,        2.4,   0,      8,             0,         0,           0
+      3,   0,         2.4,   0,      8,             1,         0.4,         0.8
+      4,   96,        2.4,   0,      8,             1,         0.4,         0.8
+      5,   0,         2.4,   0,      8,             1,         0.15,        0.3
+      6,   96,        2.4,   0,      8,             1,         0.15,        0.3
+      7,   0,         2.4,   0,      8,             1,         0.03,        0.06
+      8,   96,        2.4,   0,      8,             1,         0.03,        0.06
    };
 
 fprintf('Generating %d matched pairs (position %g Hz, AO %g Hz)...\n', ...
@@ -85,32 +106,65 @@ for i = 1:size(V,1)
 
     % --- position function (write-in) ---
     % make_func_opto_write_in always reads the 3 optional strobe args, so pass
-    % all three even when strobeBar == 0.
+    % all three even when strobeBar == 0; the 4th optional arg is the leading blank.
     make_func_opto_write_in(ID, barStartLoc, onDur, offDur, numMarkPoints, ...
-        strobeBar, strobeOnDur, strobeOffDur);
+        strobeBar, strobeOnDur, strobeOffDur, leadBlankDur);
 
-    % --- matching AO timeline ---
+    % --- matching AO timeline (ONE position cycle) ---
     % Onsets/widths/totalDur are in SECONDS (real time), computed from the
     % position clock (funcFreq_pos) so they line up with the bar presentations.
+    % totalDur is one position-function CYCLE (incl. the leading blank) - the period
+    % the .pfn loops at. The leading blank shifts every onset so pulse 1 stays aligned.
     [onsets, widths, totalDur] = writein_ao_timeline(funcFreq_pos, onDur, offDur, ...
-        numMarkPoints, strobeBar, strobeOnDur, strobeOffDur, ao_delay, ao_pulse_dur);
+        numMarkPoints, strobeBar, strobeOnDur, strobeOffDur, ao_delay, ao_pulse_dur, ...
+        leadBlankDur);
 
-    % Pad the AO with a baseline tail so it OUTLASTS the display and can never
-    % loop back to re-fire pulses. The display runtime is set by the position
-    % function (see the protocol), so this tail is simply never reached. The
-    % margin (~5% + 0.5 s) absorbs the small AO-rate uncertainty that would
-    % otherwise let the AO finish early and repeat.
-    ao_totalDur = totalDur + 0.05*totalDur + 0.5;
+    % --- VERIFY the .pfn actually got the leading blank ---------------------------
+    % An OLD make_func_opto_write_in silently ignores the leadBlankDur argument, which
+    % leaves the position function WITHOUT the lead while the AO timeline above still
+    % adds it -> the AO slips one blank PER REP (the 0.25 s/rep, 1.3 s-by-rep-5 drift).
+    % Read the .pfn back and confirm its sample count matches the timeline AND it
+    % starts with the dark blank; error loudly if not.
+    N_expected = round(totalDur * funcFreq_pos);
+    leadLenExp = round(leadBlankDur * funcFreq_pos);
+    pfnMats = dir(fullfile(exp_path, 'Functions', sprintf('%04d_*.mat', ID)));
+    pfnMats = pfnMats(~endsWith({pfnMats.name}, '_G4.mat'));      % exclude AO .mats
+    assert(~isempty(pfnMats), 'No .pfn .mat found for ID %d to verify.', ID);
+    [~, newest] = max([pfnMats.datenum]);
+    Spf = load(fullfile(pfnMats(newest).folder, pfnMats(newest).name));
+    nSampActual = numel(Spf.pfnparam.func);
+    assert(nSampActual == N_expected, ...
+        ['Position function ID %d has %d samples but the AO timeline expects %d. The ' ...
+         'leading blank is missing/mismatched - your make_func_opto_write_in.m is almost ' ...
+         'certainly an OLD version that ignores leadBlankDur. Update that file and rerun.'], ...
+        ID, nSampActual, N_expected);
+    assert(all(Spf.pfnparam.func(1:leadLenExp) == 184), ...
+        'Position function ID %d does not start with the %d-sample (%.3f s) dark leading blank.', ...
+        ID, leadLenExp, leadBlankDur);
+
+    % --- repeat the cycle's pulses across the whole run (FREE-RUN) ---
+    % The position .pfn loops internally every totalDur seconds. So pulse-set for
+    % loop c sits at the same within-cycle onsets shifted by c*totalDur. Place each
+    % pulse at its own absolute time (no AO looping) for max_reps_ao loops, so the
+    % AO stays locked to the bars across the entire run with no per-loop rounding.
+    onsets_all = [];  widths_all = [];
+    for c = 0:max_reps_ao-1
+        onsets_all = [onsets_all, onsets + c*totalDur];   %#ok<AGROW>
+        widths_all = [widths_all, widths];                %#ok<AGROW>
+    end
+    % Baseline tail so the AO always OUTLASTS the display (the protocol stops it
+    % after n_reps cycles, well before here) and never loops back to re-fire.
+    ao_totalDur = max_reps_ao*totalDur + 0.5;
 
     % Build the AO function at the AO clock. Same real-time onsets, sampled at
     % funcFreq_ao so it plays back correctly.
     aoName = sprintf('writein_AO_ID%d_%dmark_on%g_off%g', ID, numMarkPoints, onDur, offDur);
-    make_func_ao_pulses(ID, ao_totalDur, onsets, widths, ao_amp, ...
+    make_func_ao_pulses(ID, ao_totalDur, onsets_all, widths_all, ao_amp, ...
         'funcFreq', funcFreq_ao, 'baseline', ao_baseline, ...
         'name', aoName, 'overwrite', true);
 
-    fprintf('  ID %d: %d presentations, position %.3f s, AO %.3f s (padded), onsets = %s s\n', ...
-        ID, numMarkPoints, totalDur, ao_totalDur, mat2str(round(onsets,3)));
+    fprintf('  ID %d: %d presentations, cycle %.3f s, AO spans %d cycles = %.1f s, cycle onsets = %s s\n', ...
+        ID, numMarkPoints, totalDur, max_reps_ao, ao_totalDur, mat2str(round(onsets,3)));
 end
 
 % ---- compile the experiment so the controller can load the new functions ----
@@ -125,11 +179,12 @@ disp('complete!')
 % =========================================================================
 function [onsets, widths, totalDur] = writein_ao_timeline(funcFreq, onDur, ...
         offDur, numMarkPoints, strobeBar, strobeOnDur, strobeOffDur, ...
-        ao_delay, ao_pulse_dur)
+        ao_delay, ao_pulse_dur, leadBlankDur)
 
     % funcFreq is BOTH the build rate (for sample counts) and the play rate (for
     % seconds) - valid only because make_func_opto_write_in builds at this same
     % rate. The sample counts below must match its segment construction exactly.
+    leadLen  = round(leadBlankDur * funcFreq);           % leading dark blank (matches make_func)
     breakLen = round(offDur * funcFreq);                 % "behind fly" break segment
     if strobeBar == 0
         onLen = round(onDur * funcFreq);                 % bar held for onDur
@@ -139,12 +194,13 @@ function [onsets, widths, totalDur] = writein_ao_timeline(funcFreq, onDur, ...
         onLen = numStrobeCycles * (round(strobeOnDur*funcFreq) + round(strobeOffDur*funcFreq));
     end
 
-    N        = breakLen + numMarkPoints*(onLen + breakLen);
+    N        = leadLen + breakLen + numMarkPoints*(onLen + breakLen);
     totalDur = N / funcFreq;
 
     % 0-based sample onset of each presentation (make_func_ao_pulses adds the +1),
-    % converted to real seconds at the (play) rate so the AO lands when the bar does.
-    onsetSamples = breakLen + (0:numMarkPoints-1)*(onLen + breakLen);
+    % converted to real seconds so the AO lands when the bar does. The leading blank
+    % shifts every onset by leadLen, matching the position function.
+    onsetSamples = leadLen + breakLen + (0:numMarkPoints-1)*(onLen + breakLen);
     onsets = onsetSamples/funcFreq + ao_delay;
 
     if isempty(ao_pulse_dur)
