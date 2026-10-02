@@ -31,20 +31,29 @@ gain          = round(num_x_frames / voltage_range);   % = 19
 offset        = 0;
 
 % -- Phase 3 function playback --
-pos_func_id = 7;         % ID of your custom position function (.pfn)
-ao_func_id  = 7;         % ID of your custom AO function (.afn)
+pos_func_id = 2;         % ID of your custom position function (.pfn)
+ao_func_id  = 2;         % ID of your custom AO function (.afn)
 ao_channel  = 2;         % FUNCTION-capable AO channel: 2, 3, 4, or 5 ONLY.
                          % (AO6/AO7 are static-only and cannot play a function -
                          %  wire your opto BNC into breakout-box AO2 for ao_channel=2.)
-funcFreq    = 395;       % TRUE Mode-1 hardware playback rate (Hz), measured from the
-                         % logged Frame_Position/Frame_Time trace: clean bar
-                         % presentations play in 2.4169 s -> 395 Hz (+-1). Used as
-                         % func_dur_s = nSampPos/funcFreq = one cycle length, which
-                         % sets the free-run display duration (n_reps * func_dur_s).
-                         % NOTE: the true rate drifts ~2% run-to-run, so the number of
-                         % COMPLETE loops in that fixed time = n_reps*(true_rate/395)
-                         % may be off by ~+-1; count actual reps from the Frame log.
+funcFreq    = 395;       % .pfn build rate (make_func_opto_write_in). Only used here for
+                         % the AO length sanity check; the run duration is HARD-CODED
+                         % below (rep_dur_s), not derived from this.
 n_reps      = 5;
+
+% -- HARD-CODED per-rep cycle duration (s) for the strobe conditions you test --------
+% The free-run display runs n_reps * rep_dur_s, so pick the value for the strobe you
+% are running and it plays EXACTLY n_reps cycles (no partial extra rep / extra strobe).
+% These are the real rep periods at the current ~392.8 Hz play rate (onDur 2.4 s,
+% 8 marks, leadBlank 0.2 s, offDur 0):
+%     strobe 0.40 / 0.80  ->  rep_dur_s = 19.51
+%     strobe 0.15 / 0.30  ->  rep_dur_s = 18.22
+%     strobe 0.03 / 0.06  ->  rep_dur_s = 19.99   (measured from the 10-02 log)
+% They are tied to the play rate (which drifts ~2% run-to-run). If a run shows a restart
+% (extra strobe at the start), lower rep_dur_s a touch; if the LAST strobe is clipped,
+% raise it. Re-measure the rep period from any Frame log (location-0 onset to the next
+% location-0 onset) to recalibrate.
+rep_dur_s   = 19.4;     % <- set to the strobe condition being run
 
 % -- Phase durations --
 cl_dur   = 5;           % closed-loop seconds (phases 1 & 5)
@@ -97,28 +106,35 @@ show_dark(ctlr, dark_frame_index, dark_dur);
 % ================== PHASE 3: position + AO, n_reps (FREE-RUN) ==================
 % Read the function durations now (not at the top) so phases 1-2 run even if the
 % function files are misplaced. func_dur_s is ONE position-function cycle (the period
-% the .pfn loops at). The AO .afn is built to span many cycles (see the generator).
+% the .pfn loops at). The AO .afn is ALSO one cycle and loops in sync (see generator).
 [func_dur_s, nSampPos] = get_g4_func_dur(pos_func_id, 'pfn', funcFreq, posFuncDir);
 ao_dur_s = get_g4_func_dur(ao_func_id, 'afn', [], aoFuncDir);   % [] -> the AO's own stored rate
 
 % FREE-RUN: instead of one startDisplay per rep, run ONE continuous display and let
-% the position function LOOP internally n_reps times. Internal loops are seamless (no
-% startup hold - verified from the Frame log), so only the FIRST bar/pulse of the
-% whole run sees the startDisplay hold; discard that one pulse in analysis. This
-% removes the per-rep first-pulse misalignment entirely.
-run_dur_s  = n_reps * func_dur_s;
+% BOTH functions LOOP internally. The position .pfn (nSampPos) and the AO .afn
+% (2*nSampPos at 2x the rate) have the same real cycle duration, so they loop locked
+% together for the whole run (ratio 2, measured). Internal loops are seamless (no
+% startup hold), so only the FIRST bar/pulse of the whole run sees the startDisplay
+% hold; discard that one pulse in analysis.
+%
+% Run duration is HARD-CODED from the measured rep period (rep_dur_s), NOT computed
+% from func_dur_s - the build-rate estimate overshoots the true cycle and ran a partial
+% 6th rep. n_reps * rep_dur_s lands exactly on the n_reps-cycle boundary.
+run_dur_s  = n_reps * rep_dur_s;
 total_deci = round(run_dur_s * 10);
 
-% The AO must outlast the display or it would loop and desync. (Generator builds it to
-% cover max_reps_ao cycles.)
-assert(ao_dur_s >= run_dur_s - 0.02, ...
-    ['AO function covers %.1f s but this run needs %.1f s (n_reps=%d). Raise max_reps_ao ' ...
-     'in the generator and rebuild, or lower n_reps.'], ao_dur_s, run_dur_s, n_reps);
+% Sanity: the AO cycle should be ~one position cycle (it loops WITH the .pfn). A much
+% longer AO means an old generator built a multi-cycle AO that the G4 truncates at its
+% ~65536-sample limit and loops mid-run (that caused the extra pulse / drift).
+assert(ao_dur_s <= func_dur_s*1.5 + 0.05, ...
+    ['AO function is %.2f s but one position cycle is %.2f s. The AO should be a SINGLE ' ...
+     'cycle that loops - regenerate with the current generator (one-cycle AO).'], ...
+    ao_dur_s, func_dur_s);
 
-fprintf(['Phase 3 (free-run): %d samples/cycle, %.4f s/cycle, %d reps -> %.1f s continuous.\n' ...
-         '  NOTE: complete reps = n_reps * (true_rate/funcFreq) ~ %d; count actual reps from the\n' ...
-         '  Frame log and discard the first pulse (startDisplay startup hold).\n'], ...
-    nSampPos, func_dur_s, n_reps, run_dur_s, n_reps);
+fprintf(['Phase 3 (free-run): hard-coded %.2f s/rep x %d reps = %.1f s continuous.\n' ...
+         '  Discard the first pulse of the run (startDisplay startup hold). If you see a\n' ...
+         '  restart or a clipped last strobe, nudge rep_dur_s and re-check the Frame log.\n'], ...
+    rep_dur_s, n_reps, run_dur_s);
 
 % Pattern was set once in CONNECT. Set mode/function/AO-ID ONCE, then one display.
 ctlr.stopDisplay();

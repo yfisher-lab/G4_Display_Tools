@@ -45,12 +45,13 @@ funcFreq_ao  = 2 * funcFreq_pos;     % = 790; separate AO hardware clock (2 x po
 
 % FREE-RUN design: the protocol plays ONE continuous display and lets the position
 % function loop internally n_reps times (internal loops are seamless - only the first
-% startDisplay incurs the startup hold). So the AO function must span the WHOLE run,
-% not one cycle. We build it to cover max_reps_ao cycles of pulses, each cycle's
-% pulses placed at their own absolute time (no AO looping), so the protocol can run
-% any n_reps up to this many. The display stops before the AO ends, leaving the
-% surplus pulses unreached.
-max_reps_ao = 50;                    % AO covers up to this many reps (protocol asserts n_reps <= this)
+% startDisplay incurs the startup hold). The AO is built as exactly ONE cycle and
+% LOOPS along with the .pfn: nSampAO = 2*nSampPos (ratio 2), so the two cycles share
+% the same real duration and stay locked every loop, for ANY number of reps. This
+% also keeps the AO tiny - a multi-cycle AO blows past the G4's ~65536-sample
+% per-function memory limit, which truncates it and makes it loop mid-run (the extra
+% pulse / drift you saw was a 50-cycle AO truncated to ~4.3 cycles).
+MAX_FUNC_SAMPLES = 65535;            % G4 per-function sample limit (2^16-1)
 
 % Leading dark blank (s) at the start of the position CYCLE so the first bar is hidden
 % during the startDisplay startup hold (keeps the first AO pulse aligned - nothing to
@@ -142,29 +143,29 @@ for i = 1:size(V,1)
         'Position function ID %d does not start with the %d-sample (%.3f s) dark leading blank.', ...
         ID, leadLenExp, leadBlankDur);
 
-    % --- repeat the cycle's pulses across the whole run (FREE-RUN) ---
-    % The position .pfn loops internally every totalDur seconds. So pulse-set for
-    % loop c sits at the same within-cycle onsets shifted by c*totalDur. Place each
-    % pulse at its own absolute time (no AO looping) for max_reps_ao loops, so the
-    % AO stays locked to the bars across the entire run with no per-loop rounding.
-    onsets_all = [];  widths_all = [];
-    for c = 0:max_reps_ao-1
-        onsets_all = [onsets_all, onsets + c*totalDur];   %#ok<AGROW>
-        widths_all = [widths_all, widths];                %#ok<AGROW>
-    end
-    % Baseline tail so the AO always OUTLASTS the display (the protocol stops it
-    % after n_reps cycles, well before here) and never loops back to re-fire.
-    ao_totalDur = max_reps_ao*totalDur + 0.5;
+    % --- ONE-cycle AO that LOOPS in sync with the position (FREE-RUN) --------------
+    % The AO is exactly ONE position cycle long (ao_totalDur = totalDur), so it loops
+    % internally alongside the .pfn. nSampAO = round(totalDur*funcFreq_ao) = 2*nSampPos
+    % (ratio 2), so both cycles have the same real duration and stay locked every
+    % loop, for any n_reps - with NO giant multi-cycle AO to hit the memory limit.
+    ao_totalDur = totalDur;
+    nSampAO = round(ao_totalDur * funcFreq_ao);
+    assert(N_expected <= MAX_FUNC_SAMPLES, ...
+        'Position function ID %d is %d samples > the G4 %d-sample limit - shorten the cycle.', ...
+        ID, N_expected, MAX_FUNC_SAMPLES);
+    assert(nSampAO <= MAX_FUNC_SAMPLES, ...
+        'AO function ID %d is %d samples > the G4 %d-sample limit - shorten the cycle.', ...
+        ID, nSampAO, MAX_FUNC_SAMPLES);
 
     % Build the AO function at the AO clock. Same real-time onsets, sampled at
     % funcFreq_ao so it plays back correctly.
     aoName = sprintf('writein_AO_ID%d_%dmark_on%g_off%g', ID, numMarkPoints, onDur, offDur);
-    make_func_ao_pulses(ID, ao_totalDur, onsets_all, widths_all, ao_amp, ...
+    make_func_ao_pulses(ID, ao_totalDur, onsets, widths, ao_amp, ...
         'funcFreq', funcFreq_ao, 'baseline', ao_baseline, ...
         'name', aoName, 'overwrite', true);
 
-    fprintf('  ID %d: %d presentations, cycle %.3f s, AO spans %d cycles = %.1f s, cycle onsets = %s s\n', ...
-        ID, numMarkPoints, totalDur, max_reps_ao, ao_totalDur, mat2str(round(onsets,3)));
+    fprintf('  ID %d: %d presentations, cycle %.3f s, .pfn %d samp, .afn %d samp (loops), onsets = %s s\n', ...
+        ID, numMarkPoints, totalDur, N_expected, nSampAO, mat2str(round(onsets,3)));
 end
 
 % ---- compile the experiment so the controller can load the new functions ----
