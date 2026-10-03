@@ -24,6 +24,45 @@ dark_frame_index = 184;  % 0-based controller index of the dark/blank frame.
                          % setPositionX is 0-based, so use 184, not 185. (If the
                          % dark phase isn't dark, confirm this pattern's dark index.)
 
+% -- Run metadata (goes into the saved file names) --
+fly_num   = 1;           % fly number for this run
+trial_num = [];          % [] = AUTO: scan the save folders for the highest existing
+                         % <date>_fly<n>_trial<m> and use m+1. Set a number to override.
+
+% -- External programs launched at startup (background), closed at the end --
+fictrac_lnk   = 'C:\Users\Public\Desktop\FicTrac.lnk';                    % FicTrac shortcut
+fictrac_exe   = 'FicTrac.exe';   % process name to close at the end (check Task Manager
+                                 % > Details if the FicTrac process is named differently)
+phidget_py    = 'C:\Users\Fisher Lab\Desktop\fictrac_phidget_output.py';  % Phidget AO driver
+python_cmd    = 'python';        % interpreter for phidget_py - MUST be 'python' (not python 3.13)
+phidget_title = 'G4_PhidgetDriver';  % console-window title given to the python driver so we
+                                     % can close THAT window only (not other python processes)
+launch_delay  = 2;               % s to wait after launching for them to initialize
+
+% -- Start trigger pulse (tells the other equipment to start) --
+trig_channel = 6;           % AO6 (static-only output; the only AO setAO can drive is 6/7)
+trig_volt    = 5;           % V
+trig_dur     = 0.05;        % s (50 ms)
+
+% -- Post-run log saving (and the naming convention) --
+fictrac_dat_dir = 'C:\Users\Fisher Lab\Documents\FicTrac 2.1.1';  % FicTrac writes its .dat here
+fictrac_dest    = 'D:\Lily\FicTrac';                   % copy this run's .dat here
+g4_log_parent   = fullfile(exp_folder, 'Log Files');   % where the G4 Host writes its log folder
+g4_log_dest     = 'D:\Lily\G4 logs';                   % move this run's G4 log folder here
+save_subfolder  = 'debugging';          % optional subfolder created inside BOTH dests to group runs
+                               % (e.g. 'fly1' or '2026-10-02'); '' = save directly in the dest.
+                               % created automatically if it does not exist.
+% Base name: <date>_fly<n>_trial<m>  e.g. 2026-10-02_fly1_trial1. If trial_num is [],
+% auto-pick the next trial: scan both save folders (within save_subfolder) for existing
+% entries matching this date+fly and use the highest trial number + 1.
+date_str = datestr(now, 'yyyy-mm-dd');
+if isempty(trial_num)
+    trial_num = next_trial_num({fullfile(fictrac_dest, save_subfolder), ...
+                                fullfile(g4_log_dest,  save_subfolder)}, date_str, fly_num);
+end
+save_basename = sprintf('%s_fly%d_trial%d', date_str, fly_num, trial_num);
+fprintf('Run name: %s\n', save_basename);
+
 % -- Mode 7 closed-loop calibration (phases 1 & 5) --
 num_x_frames  = 192;
 voltage_range = 10;
@@ -31,8 +70,8 @@ gain          = round(num_x_frames / voltage_range);   % = 19
 offset        = 0;
 
 % -- Phase 3 function playback --
-pos_func_id = 2;         % ID of your custom position function (.pfn)
-ao_func_id  = 2;         % ID of your custom AO function (.afn)
+pos_func_id = 1;         % ID of your custom position function (.pfn)
+ao_func_id  = 1;         % ID of your custom AO function (.afn)
 ao_channel  = 2;         % FUNCTION-capable AO channel: 2, 3, 4, or 5 ONLY.
                          % (AO6/AO7 are static-only and cannot play a function -
                          %  wire your opto BNC into breakout-box AO2 for ao_channel=2.)
@@ -70,6 +109,18 @@ assert(ao_channel >= 2 && ao_channel <= 5, ...
 posFuncDir = fullfile(exp_folder, 'Functions');
 aoFuncDir  = fullfile(exp_folder, 'Analog Output Functions');
 
+% ==================== LAUNCH EXTERNAL EQUIPMENT ====================
+% Mark the run start so the post-run save can pick THIS run's files (those created
+% after now), not stale ones. Launch FicTrac + the Phidget driver in the background
+% (the `start` command returns immediately) so they are up for the closed-loop phases.
+run_start_dnum = now;
+fprintf('Launching FicTrac and the Phidget driver...\n');
+system(sprintf('start "" "%s"', fictrac_lnk));                     % FicTrac (.lnk shortcut)
+% Launch the python driver in a console window TITLED phidget_title, so it can be closed
+% by that exact title later (image-name kill would hit unrelated python processes).
+system(sprintf('start "%s" %s "%s"', phidget_title, python_cmd, phidget_py));
+pause(launch_delay);                                               % let them initialize
+
 % ============================ CONNECT ============================
 ctlr = PanelsController();
 ctlr.open(true);
@@ -92,6 +143,15 @@ if ~ctlr.startLog()
     warning('Log failed to start. Check G4 Host.'); ctlr.close(); return;
 end
 protocol_timer = tic;
+
+% ===================== START TRIGGER (before Phase 1) =====================
+% Brief AO6 pulse to tell the other equipment to start. Logged (after startLog) so the
+% trigger time is in the TDMS record. setAO drives AO6/AO7 only, in volts.
+fprintf('[%.1f s] Start trigger: %g V, %g ms on AO%d\n', toc(protocol_timer), trig_volt, trig_dur*1000, trig_channel);
+ctlr.sendSyncLog(MARK, 10);
+ctlr.setAO(trig_channel, trig_volt);
+pause(trig_dur);
+ctlr.setAO(trig_channel, 0);
 
 % ======================= PHASE 1: closed loop =======================
 fprintf('[%.1f s] Phase 1: Mode 7 closed loop (%d s)\n', toc(protocol_timer), cl_dur);
@@ -168,6 +228,59 @@ ctlr.stopLog('timeout', 60.0, 'showTimeoutDialog', true);
 ctlr.close();
 fprintf('[%.1f s] Protocol complete - arena dark.\n', toc(protocol_timer));
 
+% ==================== CLOSE EXTERNAL EQUIPMENT ====================
+% Close the Phidget console (matched by its unique window title) and FicTrac (by image
+% name). Done BEFORE saving so FicTrac releases its .dat file. /T also ends child
+% processes; /F forces. Errors are ignored (nothing to close is fine).
+fprintf('Closing FicTrac and the Phidget driver...\n');
+% Close the python driver by matching its COMMAND LINE (the script path). taskkill by
+% window title does not reliably close console windows, which is why the window stayed
+% open. This finds the python.exe running phidget_py and stops it.
+[~, scriptkey] = fileparts(phidget_py);   % e.g. 'fictrac_phidget_output'
+[~,~] = system(sprintf(['powershell -NoProfile -Command "Get-CimInstance Win32_Process | ' ...
+    'Where-Object { $_.Name -eq ''python.exe'' -and $_.CommandLine -like ''*%s*'' } | ' ...
+    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"'], scriptkey));
+[~,~] = system(sprintf('taskkill /IM "%s" /F', fictrac_exe));   % FicTrac GUI, by image name
+pause(1);   % let file handles release before copying the .dat
+
+% ==================== SAVE LOGS (renamed, relocated) ====================
+% Pick the files created during THIS run (modified after run_start_dnum) and save them
+% under save_basename. Each is wrapped so a failure only warns - the raw logs are still
+% in their original folders. FicTrac is already closed above, so its .dat is released.
+pause(1);   % let the G4 Host finish flushing the TDMS files
+
+% FicTrac .dat -> copy to fictrac_dest\<basename>.dat  (copy, not move: FicTrac may still
+% hold the file open).
+try
+    ft_outdir = fullfile(fictrac_dest, save_subfolder);
+    if ~exist(ft_outdir, 'dir'); mkdir(ft_outdir); end
+    dats = dir(fullfile(fictrac_dat_dir, '*.dat'));
+    dats = dats([dats.datenum] >= run_start_dnum - 1/1440);   % created this run (1 min slack)
+    assert(~isempty(dats), 'no new .dat in %s since the run started', fictrac_dat_dir);
+    [~, ix] = max([dats.datenum]);
+    dst = fullfile(ft_outdir, [save_basename '.dat']);
+    copyfile(fullfile(dats(ix).folder, dats(ix).name), dst);
+    fprintf('Saved FicTrac .dat -> %s\n', dst);
+catch ME
+    warning('FicTrac .dat not saved (%s). Copy it manually from %s.', ME.message, fictrac_dat_dir);
+end
+
+% G4 log folder -> move to g4_log_dest\<basename>  (the whole timestamped TDMS folder).
+try
+    g4_outdir = fullfile(g4_log_dest, save_subfolder);
+    if ~exist(g4_outdir, 'dir'); mkdir(g4_outdir); end
+    d = dir(g4_log_parent);
+    d = d([d.isdir] & ~ismember({d.name}, {'.','..'}));
+    d = d([d.datenum] >= run_start_dnum - 1/1440);
+    assert(~isempty(d), 'no new G4 log folder in %s since the run started', g4_log_parent);
+    [~, ix] = max([d.datenum]);
+    dst = fullfile(g4_outdir, save_basename);
+    movefile(fullfile(d(ix).folder, d(ix).name), dst);
+    fprintf('Saved G4 log -> %s\n', dst);
+catch ME
+    warning('G4 log not saved (%s). Move it manually from %s.', ME.message, g4_log_parent);
+end
+
 % ============================ HELPERS ============================
 function run_closed_loop(ctlr, gain, offset, dur_s)
     % Mode 7: ADC0 (FicTrac heading) sets the bar x-index. FINITE, NON-BLOCKING
@@ -198,4 +311,22 @@ function show_dark(ctlr, dark_frame_index, dur_s)
         pause(0.05);
     end
     pause(dur_s);
+end
+
+function tn = next_trial_num(searchDirs, dateStr, flyNum)
+    % Highest existing trial number for this date+fly across searchDirs, + 1 (1 if none).
+    % Matches names like '<dateStr>_fly<flyNum>_trial<m>' - both the .dat files and the
+    % G4 log folders, since they share the base name.
+    prefix = sprintf('%s_fly%d_trial', dateStr, flyNum);
+    maxt = 0;
+    for i = 1:numel(searchDirs)
+        D = searchDirs{i};
+        if isempty(D) || ~exist(D, 'dir'); continue; end
+        items = dir(fullfile(D, [prefix '*']));
+        for k = 1:numel(items)
+            tok = regexp(items(k).name, [regexptranslate('escape', prefix) '(\d+)'], 'tokens', 'once');
+            if ~isempty(tok); maxt = max(maxt, str2double(tok{1})); end
+        end
+    end
+    tn = maxt + 1;
 end
